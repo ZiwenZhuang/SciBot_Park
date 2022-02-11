@@ -29,7 +29,15 @@ unitree_camera_positions = dict(
         right= [0, -0.1, 0],
         up= [0, 0, 0.1],
         down= [0, 0, -0.12],
-    )
+    ),
+    go1= dict(
+        front= [0.28, 0, 0],
+        back= [-0.25, 0, 0],
+        left= [-0.05, 0.09, 0],
+        right= [-0.05, -0.09, 0],
+        up= [0, 0, 0.06],
+        down= [-0.08, 0, -0.06],
+    ),
 )
 def get_default_camera_dict():
     return dict( # where z-axis is up direction, x-axis is right direction

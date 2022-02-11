@@ -6,7 +6,7 @@ from pybullet_utils import bullet_client
 import gym
 from gym import spaces, Env
 
-from scibotpark.unitree.unitree_robot import UniTreeRobot
+from scibotpark.unitree.robot import UniTreeRobot
 from scibotpark.pybullet.base import PybulletEnv
 
 class UniTreeExampleEnv(PybulletEnv, Env):
@@ -133,7 +133,7 @@ if __name__ == "__main__":
     env = UniTreeExampleEnv(
         obs_type= "vision",
         robot_kwargs= dict(
-            robot_type= "a1",
+            robot_type= "go1",
             pb_control_mode= "DELTA_POSITION_CONTROL",
             pb_control_kwargs= dict(force= 20),
             simulate_timestep= 1./500,
