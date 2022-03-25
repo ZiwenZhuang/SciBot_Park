@@ -25,6 +25,8 @@ class PybulletRobot:
     def load_robot_model(self):
         self._body_id = -1
         raise NotImplementedError("load_robot_model is not implemented")
+    def set_robot_dynamics(self):
+        pass
     def set_default_joint_states(self):
         pass
     def reset_joint_states(self):
@@ -34,6 +36,7 @@ class PybulletRobot:
         """ initialization sequence to build and set the robot model """
         self.load_robot_model() # must implement in subclass
         self.set_valid_joint_ids(getattr(self, "valid_joint_types", None))
+        self.set_robot_dynamics()
         self.set_default_joint_states()
         self.reset_joint_states()
 
@@ -55,27 +58,30 @@ class PybulletRobot:
     def set_valid_joint_ids(self,
             valid_joint_types= None, # a list of valid joint type, check pybullet docs
         ):
-        """
+        """ set the valid joint ids for the current robot, and PybulletRobot interface will only
+        expose the data of valid joints by default.
         New attributes:
-            valid_joint_ids: a list of valid joint ids
+            valid_joint_ids: a nparray of valid joint ids
         """
         if valid_joint_types is None:
-            self.valid_joint_ids = list(range(self.pb_client.getNumJoints(self._body_id)))
+            self.valid_joint_ids = np.array(range(self.pb_client.getNumJoints(self._body_id)))
         else:
             self.valid_joint_ids = [
                 joint_id for joint_id in range(self.pb_client.getNumJoints(self._body_id)) \
                 if self.pb_client.getJointInfo(self.body_id, joint_id)[2] in valid_joint_types
             ]
+        self.all_joint_ids = np.array(range(self.pb_client.getNumJoints(self._body_id)))
     
     def get_joint_limits(self,
             modal= "position", # "position", "velocity", "torque"
+            valid_joint_only= True,
         ):
         """ get joint limits of current robot (under joint validity configuration)
         Returns:
             limits: a np array of joint limits for the actual robot command, shape (2, n_valid_joints)
         """
         limits = []
-        for joint_id in self.valid_joint_ids:
+        for joint_id in (self.valid_joint_ids if valid_joint_only else self.all_joint_ids):
             joint_info = self.pb_client.getJointInfo(self.body_id, joint_id)
             joint_type = joint_info[2]
             if (joint_type == pybullet.JOINT_PRISMATIC or joint_type == pybullet.JOINT_REVOLUTE)\
@@ -110,12 +116,13 @@ class PybulletRobot:
 
     def get_joint_states(self,
             modal= "position", # "position", "velocity", "torque"
+            valid_joint_only= True,
         ):
         """ get joint state of current robot (under joint validity configuration)
         Returns:
             joint_states: a np array of joint position/velocity/torque
         """
-        joint_states = self.pb_client.getJointStates(self.body_id, self.valid_joint_ids)
+        joint_states = self.pb_client.getJointStates(self.body_id, (self.valid_joint_ids if valid_joint_only else self.all_joint_ids))
         if modal == "position":
             return np.array([joint_state[0] for joint_state in joint_states])
         elif modal == "velocity":

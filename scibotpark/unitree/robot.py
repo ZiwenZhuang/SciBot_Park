@@ -36,7 +36,6 @@ class UniTreeRobot(DeltaPositionControlMixin, PybulletRobot):
 
     def build_robot_model(self):
         super().build_robot_model()
-        self.set_robot_dynamics()
         self.set_onboard_camera()
 
     def load_robot_model(self):

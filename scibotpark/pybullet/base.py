@@ -13,7 +13,6 @@ class PybulletEnv:
     def __init__(self,
             nsubsteps= 1,
             additional_search_path= None,
-            pb_control_arguments= dict(),
             pb_object_dynamics_parameter= dict(),
             pb_engine_parameter= dict(),
             pb_client= None
@@ -22,7 +21,6 @@ class PybulletEnv:
         NOTE: In this class, there is not action_space or observation_space concept
         """
         self.nsubsteps = nsubsteps
-        self.pb_control_arguments = pb_control_arguments # for pybullet.setJointMotorControlArray that is used in step_simulation_from_action every step
         self.pb_object_dynamics_parameter = pb_object_dynamics_parameter # change object dynamics in general (e.g. ground plane)
         self.pb_engine_parameter = pb_engine_parameter # used in self.pb_client.setPhysicsEngineParameter
         self.pb_client = bullet_client.BulletClient(connection_mode=pybullet.DIRECT) if pb_client is None else pb_client
