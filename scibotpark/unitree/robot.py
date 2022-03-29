@@ -53,7 +53,7 @@ class UniTreeRobot(DeltaPositionControlMixin, PybulletRobot):
             urdf_file,
             self.default_base_transform[:3],
             self.default_base_transform[3:],
-            flags= p.URDF_USE_SELF_COLLISION,
+            flags= p.URDF_USE_SELF_COLLISION | p.URDF_USE_INERTIA_FROM_FILE,
             useFixedBase= False
         )
 

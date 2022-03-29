@@ -45,6 +45,7 @@ class ShadowHandRobot(PybulletRobot):
                 # | pybullet.URDF_INITIALIZE_SAT_FEATURES \
                 # | pybullet.URDF_ENABLE_CACHED_GRAPHICS_SHAPES \
                 | pybullet.URDF_MAINTAIN_LINK_ORDER \
+                | pybullet.URDF_USE_INERTIA_FROM_FILE \
                 | 0
         )
 
