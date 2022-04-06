@@ -9,9 +9,11 @@ from scibotpark.shadow_hand.robot import ShadowHandRobot
 class ShadowHandEnv(PybulletEnv, Env):
     def __init__(self,
             robot_kwargs= dict(),
+            horizon= int(1e4),
             **kwargs,
         ):
         self.robot_kwargs = robot_kwargs
+        self.horizon = horizon
 
         super().__init__(**kwargs)
 
@@ -88,6 +90,6 @@ class ShadowHandEnv(PybulletEnv, Env):
 
         obs = self._get_obs()
         reward = self.compute_reward(obs)
-        done = False
+        done = self.is_done(obs)
         info = {}
         return obs, reward, done, info

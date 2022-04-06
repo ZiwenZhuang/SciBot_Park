@@ -34,6 +34,7 @@ class PybulletEnv:
         self.pb_client.setRealTimeSimulation(0)
         self.pb_client.setPhysicsEngineParameter(**self.pb_engine_parameter)
         self.pb_client.setGravity(0, 0, -9.81)
+        self._nsteps_after_reset = 0 # use to set done based on horizon.
 
     def _build_surroundings(self):
         self.plane_id = self.pb_client.loadURDF(
@@ -59,8 +60,13 @@ class PybulletEnv:
     def step_simulation_from_action(self, action):
         self.robot.send_joints_cmd(action)
         for _ in range(self.nsubsteps): self.pb_client.stepSimulation()
+        self._nsteps_after_reset += 1
+
+    def is_done(self, *args, **kwargs):
+        return self._nsteps_after_reset >= self.horizon if hasattr(self, "horizon") else False
     
     def reset(self, *args, **kwargs):
+        self._nsteps_after_reset = 0 # use to set done based on horizon.
         try:
             self._reset_surroundings(*args, **kwargs)
             self._reset_robot(*args, **kwargs)
