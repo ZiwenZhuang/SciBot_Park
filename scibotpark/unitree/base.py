@@ -9,7 +9,7 @@ from gym import spaces, Env
 from scibotpark.unitree.robot import UniTreeRobot
 from scibotpark.pybullet.base import PybulletEnv
 
-class UniTreeExampleEnv(PybulletEnv, Env):
+class UnitreeEnv(PybulletEnv, Env):
     def __init__(self,
             obs_type= ["vision"], # a list contains: "vision", "joints", "inertial"
             render_kwargs= dict(), # for getting visual observation
@@ -130,7 +130,7 @@ class UniTreeExampleEnv(PybulletEnv, Env):
 if __name__ == "__main__":
     import tqdm, time
 
-    env = UniTreeExampleEnv(
+    env = UnitreeEnv(
         obs_type= "vision",
         robot_kwargs= dict(
             robot_type= "go1",
