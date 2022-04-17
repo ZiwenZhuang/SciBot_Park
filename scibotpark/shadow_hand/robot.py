@@ -45,9 +45,13 @@ class ShadowHandRobot(PybulletRobot):
                 # | pybullet.URDF_INITIALIZE_SAT_FEATURES \
                 # | pybullet.URDF_ENABLE_CACHED_GRAPHICS_SHAPES \
                 | pybullet.URDF_MAINTAIN_LINK_ORDER \
-                | pybullet.URDF_USE_INERTIA_FROM_FILE \
+                # | pybullet.URDF_USE_INERTIA_FROM_FILE \
                 | 0
         )
+        self.default_base_transform = np.concatenate([
+            self.init_forearm_position,
+            pybullet.getQuaternionFromEuler(self.init_forearm_orientation_pry),
+        ], axis= 0)
 
     def set_robot_dynamics(self):
         all_hand_joint_limits = self.get_joint_limits(valid_joint_only= False)
@@ -109,7 +113,7 @@ class ShadowHandRobot(PybulletRobot):
     def send_joints_cmd(self, cmd):
         if self.normalize_action_space:
             cmd_limits = super().get_cmd_limits()
-            cmd = (cmd + 1) * (cmd_limits[1] + cmd_limits[0]) / 2
+            cmd = cmd * (cmd_limits[1] - cmd_limits[0]) / 2 + (cmd_limits[1] + cmd_limits[0]) / 2
         if self.enable_forearm_translation and self.forearm_translation_by_delta_scale and self.pb_control_mode == pybullet.POSITION_CONTROL:
             forearm_translation = self.get_joint_states()[:3]
             cmd[:3] *= self.forearm_translation_by_delta_scale
