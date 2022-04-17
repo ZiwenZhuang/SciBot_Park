@@ -27,9 +27,11 @@ class UnitreeEnv(PybulletEnv, Env):
         self.robot_kwargs = dict(
             robot_type= "a1",
             default_base_transform= np.array([0, 0, 0.5, 0, 0, 0, 1]),
-            pb_control_mode= "POSITION_CONTROL", # "POSITION_CONTROL", "VELOCITY_CONTROL", "TORQUE_CONTROL", "DELTA_POSITION_CONTROL"
-            pb_control_kwargs= dict(force= 20),
+            pb_control_mode= "DELTA_POSITION_CONTROL", # "POSITION_CONTROL", "VELOCITY_CONTROL", "TORQUE_CONTROL", "DELTA_POSITION_CONTROL"
+            pb_control_kwargs= dict(forces= [40] * 12),
         ); self.robot_kwargs.update(robot_kwargs)
+        if self.robot_kwargs["pb_control_mode"] == "TORQUE_CONTROL" or self.robot_kwargs["pb_control_mode"] == p.TORQUE_CONTROL:
+            self.robot_kwargs["pb_control_kwargs"].pop("forces")
         self.bullet_debug = bullet_debug
 
         pb_client = bullet_client.BulletClient(connection_mode= connection_mode, options= "")
@@ -137,9 +139,9 @@ if __name__ == "__main__":
     env = UnitreeEnv(
         obs_type= "vision",
         robot_kwargs= dict(
-            robot_type= "go1",
+            robot_type= "a1",
             pb_control_mode= "DELTA_POSITION_CONTROL",
-            pb_control_kwargs= dict(force= 20),
+            pb_control_kwargs= dict(forces= [40] * 12),
             simulate_timestep= 1./500,
         ),
         connection_mode= p.GUI,

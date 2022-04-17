@@ -9,7 +9,7 @@ class PybulletRobot:
     def __init__(self,
             default_base_transform= None, # 3-translation + 4-orientation
             pb_control_mode= pybullet.POSITION_CONTROL,
-            pb_control_kwargs= dict(),
+            pb_control_kwargs= dict(), # NOTE This is an advanced argument, you need to know what valid_joint_ids is in your robot.
             pb_client= None,
         ):
         self.default_base_transform = np.array([0,0,0,0,0,0,1]) if default_base_transform is None else default_base_transform
@@ -92,7 +92,7 @@ class PybulletRobot:
             elif modal == "velocity":
                 limits.append(np.array([-joint_info[11], joint_info[11]]))
             elif modal == "torque":
-                limits.append(np.array([-joint_info[12], joint_info[12]]))
+                limits.append(np.array([-joint_info[10], joint_info[10]]))
             else:
                 raise NotImplementedError("modal {} is not implemented".format(modal))
         limits = np.stack(limits, axis=-1) # (2, n_valid_joints)
@@ -156,23 +156,15 @@ class PybulletRobot:
                 self.valid_joint_ids,
                 controlMode= self.pb_control_mode,
                 **control_kwargs,
-                **getattr(self, "pb_control_arguments", dict()),
+                **self.pb_control_kwargs,
             )
         elif self.pb_control_mode in [pybullet.STABLE_PD_CONTROL]:
-            if getattr(self, "pb_control_arguments", dict()).get("forces", None) is not None:
-                self.pb_control_kwargs["forces"] = [[f] for f in self.pb_control_kwargs["forces"]]
-            if getattr(self, "pb_control_arguments", dict()).get("positionGains", None) is not None:
-                self.pb_control_kwargs["positionGains"] = [[f] for f in self.pb_control_kwargs["positionGains"]]
-            if getattr(self, "pb_control_arguments", dict()).get("velocityGains", None) is not None:
-                self.pb_control_kwargs["velocityGains"] = [[f] for f in self.pb_control_kwargs["velocityGains"]]
-            if getattr(self, "pb_control_arguments", dict()).get("maxVelocities", None) is not None:
-                self.pb_control_kwargs["maxVelocities"] = [[f] for f in self.pb_control_kwargs["maxVelocities"]]
             self.pb_client.setJointMotorControlMultiDofArray(
                 self.body_id,
                 self.valid_joint_ids,
                 controlMode= self.pb_control_mode,
                 **control_kwargs,
-                **getattr(self, "pb_control_arguments", dict()),
+                **self.pb_control_kwargs,
             )
 
     # must include the following property
