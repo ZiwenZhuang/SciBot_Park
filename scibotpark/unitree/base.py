@@ -61,7 +61,9 @@ class UnitreeEnv(PybulletEnv, Env):
                 dtype= np.float32,
             )
         if "joints" in self.obs_type:
-            joint_limits = self.robot.get_joint_limits("position")
+            joint_limits_position = self.robot.get_joint_limits("position")
+            joint_limits_velocity = self.robot.get_joint_limits("velocity")
+            joint_limits = np.concatenate([joint_limits_position, joint_limits_velocity], axis= -1)
             obs_space["joints"] = spaces.Box(
                 joint_limits[0],
                 joint_limits[1],
@@ -84,7 +86,9 @@ class UnitreeEnv(PybulletEnv, Env):
         if "vision" in self.obs_type:
             obs["vision"] = self.render(**self.render_kwargs)
         if "joints" in self.obs_type:
-            obs["joints"] = self.robot.get_joint_states("position")
+            joint_positions = self.robot.get_joint_states("position")
+            joint_velocities = self.robot.get_joint_states("velocity")
+            obs["joints"] = np.concatenate([joint_positions, joint_velocities], axis= -1)
         if "inertial" in self.obs_type:
             inertial_data = self.robot.get_inertial_data()
             obs["inertial"] = np.concatenate([
