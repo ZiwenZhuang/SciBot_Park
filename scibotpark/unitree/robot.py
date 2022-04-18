@@ -18,6 +18,7 @@ class UniTreeRobot(DeltaPositionControlMixin, PybulletRobot):
     def __init__(self,
             robot_type= "a1",
             camera_fov_kwargs= dict(),
+            default_joint_positions= None,
             simulate_timestep= 1./500,
             bullet_debug= False, # if true, will addUserDebugParameter
             **pb_kwargs,
@@ -28,6 +29,12 @@ class UniTreeRobot(DeltaPositionControlMixin, PybulletRobot):
             nearVal= 0.01,
             farVal= 10,
         ); self.camera_fov_kwargs.update(camera_fov_kwargs)
+        self.default_joint_positions = [
+            0, 0.6, -1.9,
+            0, 0.6, -1.9,
+            0, 1.2, -2.0,
+            0, 1.2, -2.0,
+        ] if default_joint_positions is None else default_joint_positions
         self.bullet_debug = bullet_debug
         self.valid_joint_types = [p.JOINT_REVOLUTE, p.JOINT_PRISMATIC]
         
@@ -63,14 +70,13 @@ class UniTreeRobot(DeltaPositionControlMixin, PybulletRobot):
         self.joint_debug_ids = []
         joint_limits = self.get_cmd_limits()
         for idx, j in enumerate(self.valid_joint_ids):
-            jointState = self.pb_client.getJointState(self.body_id,j)
-            self.default_joint_states.append(jointState[0])
+            self.default_joint_states.append(self.default_joint_positions[idx])
             if self.bullet_debug:
                 self.joint_debug_ids.append(self.pb_client.addUserDebugParameter(
                     str(self.pb_client.getJointInfo(self.body_id,j)[1]),
                     joint_limits[0, idx],
                     joint_limits[1, idx],
-                    jointState[0]
+                    self.default_joint_positions[idx]
                 ))
 
     def reset_joint_states(self):
