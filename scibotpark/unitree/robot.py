@@ -9,7 +9,7 @@ from pybullet_utils import bullet_client
 current_file_path = os.path.dirname(os.path.realpath(__file__))
 
 from scibotpark.pybullet.robot import PybulletRobot, DeltaPositionControlMixin
-from peripherals import unitree_camera_orientations, unitree_camera_positions
+from scibotpark.unitree.peripherals import unitree_camera_orientations, unitree_camera_positions
 
 class UniTreeRobot(DeltaPositionControlMixin, PybulletRobot):
     """ The general interface to build UniTree robot into the environment.
@@ -53,7 +53,7 @@ class UniTreeRobot(DeltaPositionControlMixin, PybulletRobot):
             urdf_file,
             self.default_base_transform[:3],
             self.default_base_transform[3:],
-            flags= p.URDF_USE_SELF_COLLISION | p.URDF_USE_INERTIA_FROM_FILE,
+            flags= p.URDF_USE_SELF_COLLISION,
             useFixedBase= False
         )
 
@@ -77,6 +77,26 @@ class UniTreeRobot(DeltaPositionControlMixin, PybulletRobot):
         for idx, j in enumerate(self.valid_joint_ids):
             self.pb_client.resetJointState(self.body_id,j,self.default_joint_states[idx])
 
+    def reset(self, base_transform=None):
+        return_ = super().reset(base_transform)
+        self.sync_camera_pose()
+        return return_
+
+    def sync_camera_pose(self):
+        robot_base_positionandorientation = self.pb_client.getBasePositionAndOrientation(self.body_id)
+        for camera_name in ["front", "back", "left", "right", "up", "down"]:
+            camera_reset_positionandorientation = self.pb_client.multiplyTransforms(
+                robot_base_positionandorientation[0],
+                robot_base_positionandorientation[1],
+                unitree_camera_positions[self.robot_type][camera_name],
+                unitree_camera_orientations[self.robot_type][camera_name],
+            )
+            self.pb_client.resetBasePositionAndOrientation(
+                self.camera_ids[camera_name],
+                camera_reset_positionandorientation[0],
+                camera_reset_positionandorientation[1],
+            )
+
     def set_robot_dynamics(self):
         # enable collision between lower legs
         lower_legs = [2,5,8,11]
@@ -95,8 +115,6 @@ class UniTreeRobot(DeltaPositionControlMixin, PybulletRobot):
             self.pb_client.changeDynamics(self.body_id,j,linearDamping=0, angularDamping=0)
 
     def set_onboard_camera(self):
-        robot_base_positionandorientation = self.pb_client.getBasePositionAndOrientation(self.body_id)
-
         self.camera_ids = dict()
         for camera_name in ["front", "back", "left", "right", "up", "down"]:
             multi_body_kwargs = dict(
@@ -115,19 +133,6 @@ class UniTreeRobot(DeltaPositionControlMixin, PybulletRobot):
                     ),
                 ))
             self.camera_ids[camera_name] = self.pb_client.createMultiBody(**multi_body_kwargs)
-
-            camera_reset_positionandorientation = self.pb_client.multiplyTransforms(
-                robot_base_positionandorientation[0],
-                robot_base_positionandorientation[1],
-                unitree_camera_positions[self.robot_type][camera_name],
-                unitree_camera_orientations[self.robot_type][camera_name],
-            )
-            self.pb_client.resetBasePositionAndOrientation(
-                self.camera_ids[camera_name],
-                camera_reset_positionandorientation[0],
-                camera_reset_positionandorientation[1],
-            )
-
             self.pb_client.createConstraint(
                 self.body_id,
                 -1,
@@ -140,6 +145,7 @@ class UniTreeRobot(DeltaPositionControlMixin, PybulletRobot):
                 parentFrameOrientation= unitree_camera_orientations[self.robot_type][camera_name],
                 childFrameOrientation= [0, 0, 0, 1],
             )
+        self.sync_camera_pose()
 
     def send_cmd_from_bullet_debug(self):
         assert self.pb_control_mode == p.POSITION_CONTROL, "Not Implemented Error"
@@ -202,7 +208,7 @@ class UniTreeRobot(DeltaPositionControlMixin, PybulletRobot):
             dict:
                 position: (3,)
                 linear_velocity: (3,)
-                orientation: (3,)
+                rotation: (3,)
                 angular_velocity: (3,)
         """
         if not hasattr(self, "imu_link_idx"):

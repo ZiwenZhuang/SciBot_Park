@@ -111,11 +111,33 @@ class UnitreeEnv(PybulletEnv, Env):
         self.robot.send_cmd_from_bullet_debug()
         self.pb_client.stepSimulation()
 
-    def render(self, **render_kwargs):
+    def render(self, mode= "rgb_array", **render_kwargs):
         if "mode" in render_kwargs and render_kwargs["mode"] == "rgb_array":
             kwargs = self.render_kwargs.copy()
             kwargs["resolution"] = (render_kwargs["width"], render_kwargs["height"])
             return self.robot.get_onboard_camera_image(**kwargs)
+        if mode == "human":
+            robot_inertial = self.robot.get_inertial_data()
+            view_matrix_kwargs = dict(
+                distance= 0.8,
+                roll= 0.,
+                pitch= -30,
+                yaw= 0.,
+                upAxisIndex= 2, # z axis for up.
+            ); view_matrix_kwargs.update(render_kwargs.get("view_matrix_kwargs", dict()))
+            image_data = self.pb_client.getCameraImage(
+                width= render_kwargs.get("width", 320),
+                height= render_kwargs.get("height", 240),
+                viewMatrix= self.pb_client.computeViewMatrixFromYawPitchRoll(
+                    cameraTargetPosition= robot_inertial["position"],
+                    **view_matrix_kwargs,
+                ),
+                projectionMatrix= self.pb_client.computeProjectionMatrixFOV(
+                    aspect= render_kwargs.get("width", 320)/render_kwargs.get("height", 240),
+                    **self.robot.camera_fov_kwargs
+                ),
+            )
+            return image_data[2]
         else:
             return self.robot.get_onboard_camera_image(**render_kwargs)
 
