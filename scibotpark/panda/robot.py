@@ -10,20 +10,31 @@ from scibotpark.pybullet.robot import PybulletRobot
 class PandaRobot(PybulletRobot):
     def __init__(self,
             effector_rest_euler= [np.pi, 0., 0.],
-            arm_control_mode= "translation", # choose between "translation", "cartesian", "joint"
+            arm_control_mode= "translation",
             movement_stepsize= 0.1, # for length when cartesian movement of the end effector
             rotation_stepsize= 10, # for maximum rotation delta when cartesian movement of the end effector
+            gripper_max_force= 10., # the force send to gripper PID controller
             **pb_kwargs,
         ):
+        """
+        arm_control_mode:
+            "translation": The gripper only face down, move towards x,y,z axis
+            "trans_yaw": The gripper face down, move towardsd x,y,z axis and rotate around z axis
+            "cartesian": The gripper moves all 6 DoF
+            "joint": The robot is controlled directly by joint motor commands
+        """
         self.effector_rest_euler = effector_rest_euler
-        # "cartesian" for cartesian movement of the end effector, "joint" for directly control 
-        # each joint of the robot
         self.arm_control_mode = arm_control_mode
         self.movement_stepsize = movement_stepsize
         self.rotation_stepsize = rotation_stepsize
-        self.workspace_box = np.array([
-            [-0.5, -0.5, 0.0],
-            [0.5, 0.5, 1.0],
+        self.gripper_max_force = gripper_max_force
+        self.local_workspace_box = np.array([
+            [0.08, -0.8, 0.0],
+            [0.8, 0.8, 0.4],
+        ]) # relative to base frame
+        self.initial_position_space = np.array([
+            [0.1, -0.5, 0.02],
+            [0.5, 0.5, 0.2],
         ]) # relative to base frame
         self._get_finger_position_from_cmd = lambda x: (x+1) / 50. # from [-1, 1] to [0, 2/50]
         self.valid_joint_types = [p.JOINT_REVOLUTE, p.JOINT_PRISMATIC]
@@ -80,10 +91,6 @@ class PandaRobot(PybulletRobot):
     def set_default_joint_states(self):
         self.effector_rest_orientation = self.pb_client.getQuaternionFromEuler(self.effector_rest_euler)
         self.joints_rest_poses = [0.0, 0.09, -0.41, -2.11, 0.16, 2.17, .43, 0, 0]
-        self.random_initial_position_space = np.array([
-            [0.1, -0.3, 0.02],
-            [0.3, 0.3, 0.2],
-        ])
         
     def _get_joints_by_poi_transform(self, poi_transform, add_limits= True):
         """ poi: point of interest (on the end effector)
@@ -135,7 +142,7 @@ class PandaRobot(PybulletRobot):
     def sample_random_initial_position(self):
         """ return a random initial position in the workspace """
         position = np.random.uniform(
-            self.random_initial_position_space[0], self.random_initial_position_space[1]
+            self.initial_position_space[0], self.initial_position_space[1]
         )
         base_position, base_orientation = self.pb_client.getBasePositionAndOrientation(self.body_id)
         return np.array(p.multiplyTransforms(
@@ -176,9 +183,12 @@ class PandaRobot(PybulletRobot):
             limit = np.array([self.movement_stepsize] * 3 + [1])
             # shape (4,) for translation delta and effector open/close state
             return np.stack([-limit, limit], axis= 0).astype(np.float32)
-        elif self.arm_control_mode == "cartesian":
+        elif self.arm_control_mode == "cartesian" or self.arm_control_mode == "trans_yaw":
             limit_translation = np.array([self.movement_stepsize] * 3)
-            limit_rotation = np.array([self.rotation_stepsize] * 3)
+            if self.arm_control_mode == "cartesian":
+                limit_rotation = np.array([self.rotation_stepsize] * 3) # roll (+x), pitch (+y), yaw (+z)
+            else:
+                limit_rotation = np.array([self.rotation_stepsize]) # only yaw axis (+z)
             limit = np.concatenate([limit_translation, limit_rotation, np.array([1])], axis= 0)
             # shape (7,) for translation delta, rotation delta and effector open/close state
             return np.stack([-limit, limit], axis= 0).astype(np.float32)
@@ -190,9 +200,17 @@ class PandaRobot(PybulletRobot):
         # cartesian control or translation control
         poi_world_transform = self.get_poi_world_transform()
         target_poi_position = poi_world_transform[:3] + cmd[:3]
+        target_poi_position = self.clip_local_space(target_poi_position, self.local_workspace_box)
         if self.arm_control_mode == "cartesian":
             poi_world_euler = self.pb_client.getEulerFromQuaternion(poi_world_transform[3:])
             target_poi_euler = poi_world_euler + cmd[3:-1]
+            target_poi_orientation = self.pb_client.getQuaternionFromEuler(target_poi_euler)
+        elif self.arm_control_mode == "trans_yaw":
+            poi_world_euler = self.pb_client.getEulerFromQuaternion(poi_world_transform[3:])
+            target_poi_euler = np.concatenate([
+                self.effector_rest_euler[:2],
+                poi_world_euler[2:3] + cmd[3:4],
+            ])
             target_poi_orientation = self.pb_client.getQuaternionFromEuler(target_poi_euler)
         else:
             target_poi_orientation = self.effector_rest_orientation
@@ -218,13 +236,13 @@ class PandaRobot(PybulletRobot):
             self.end_effector_joint_id+1,
             p.POSITION_CONTROL,
             targetPosition= self._get_finger_position_from_cmd(cmd[-1]),
-            force= 10.
+            force= self.gripper_max_force,
         )
         self.pb_client.setJointMotorControl2(self.body_id, 
             self.end_effector_joint_id+2,
             p.POSITION_CONTROL,
             targetPosition= self._get_finger_position_from_cmd(cmd[-1]),
-            force= 10.
+            force= self.gripper_max_force,
         )
 
     def set_poi_visiblity(self, visible= True):

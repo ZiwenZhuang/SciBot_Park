@@ -172,6 +172,32 @@ class PybulletRobot:
     def body_id(self):
         return self._body_id
 
+    def clip_local_space(self, world_coordinate: np.ndarray, local_space: np.ndarray) -> np.ndarray:
+        """ Considering some of the robot with bixed base whose component has working range,
+        the coordinates should be clipped in local space box.
+        """
+        # TODO: current implementation does not support batch-wise operation
+        if isinstance(world_coordinate, list): world_coordinate = np.array(world_coordinate)
+        assert world_coordinate.shape == (3,) and local_space.shape == (2, 3), "coordinate shape {} and space shape {} are not supported".format(world_coordinate.shape, local_space.shape)
+
+        base_position, base_orientation = self.pb_client.getBasePositionAndOrientation(self.body_id)
+        base_position = np.array(base_position); base_orientation = np.array(base_orientation)
+
+        local_coordinate = pybullet.multiplyTransforms(
+            *pybullet.invertTransform(base_position, base_orientation),
+            world_coordinate,
+            np.array([0,0,0,1]),
+        )[0]
+        clipped_local_coordinate = np.clip(local_coordinate, local_space[0], local_space[1])
+        clipped_world_coordinate = pybullet.multiplyTransforms(
+            base_position,
+            base_orientation,
+            clipped_local_coordinate,
+            np.array([0,0,0,1]),
+        )[0]
+
+        return clipped_world_coordinate
+
 class DeltaPositionControlMixin:
     def __init__(self,
             *args,

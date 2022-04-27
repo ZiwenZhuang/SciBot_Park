@@ -7,7 +7,25 @@ from scibotpark.panda.base import PandaEnv
 from scibotpark.objects_models.pybullet import MultiObjectsMixin
 
 class PandaManipulationEnv(MultiObjectsMixin, PandaEnv):
-    pass
+
+    def __init__(self,
+            *args,
+            use_traybox= False,
+            **kwargs,
+        ):
+        self.use_traybox = use_traybox
+        super().__init__(*args, **kwargs)
+
+    def _build_surroundings(self):
+        return_ = super()._build_surroundings()
+        if self.use_traybox:
+            self.pb_client.loadURDF(
+                osp.join(pb_data.getDataPath(), "tray/traybox.urdf"),
+                [0.4, 0., 0.01,],
+                [0., 0., 0., 1.],
+                useFixedBase= True,
+            )
+        return return_
 
 
 if __name__ == "__main__":
@@ -15,13 +33,15 @@ if __name__ == "__main__":
     import time
     
     env = PandaManipulationEnv(
+        use_traybox= True,
         object_names= [
             "YcbBanana",
             "YcbHammer",
         ],
         position_sample_region= None,
         robot_kwargs= dict(
-            arm_control_mode= "translation",
+            arm_control_mode= "trans_yaw",
+            gripper_max_force= 20.,
         ),
         horizon= int(1e5),
         pb_client= bullet_client.BulletClient(connection_mode= p.GUI),
