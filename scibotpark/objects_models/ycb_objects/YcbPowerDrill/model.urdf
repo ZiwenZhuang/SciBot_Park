@@ -10,7 +10,8 @@
     </contact>
     <inertial>
        <origin rpy="0 0 0.6" xyz="-0.005 0.01 0.06"/>
-       <mass value=".895"/>
+       <!-- <mass value=".895"/> -->
+       <mass value=".195"/>
        <inertia ixx="1e-3" ixy="0" ixz="0" iyy="1e-3" iyz="0" izz="1e-3"/>
     </inertial>
     <visual>

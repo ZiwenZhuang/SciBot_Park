@@ -11,7 +11,8 @@
     </contact>
     <inertial>
        <origin rpy="0 0 0.1" xyz="0.005 0.005 -0.015"/>
-       <mass value=".603"/>
+       <!-- <mass value=".603"/> -->
+       <mass value=".303"/>
        <inertia ixx="1e-3" ixy="0" ixz="0" iyy="1e-3" iyz="0" izz="1e-3"/>
     </inertial>
     <visual>

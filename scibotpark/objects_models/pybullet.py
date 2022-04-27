@@ -28,8 +28,8 @@ class MultiObjectsMixin:
         self.object_names = object_names
         # representing where to spawn the objects randomly, see default example
         self.position_sample_region = np.array([
-            [0., -0.5, 0.],
-            [0.8, 0.5, 0.2],
+            [0.2, -0.25, 0.1],
+            [0.6, 0.25, 0.3],
         ]) if position_sample_region is None else position_sample_region
         super().__init__(**kwargs)
 

@@ -1,3 +1,4 @@
+import os.path as osp
 import numpy as np
 import pybullet as p
 import pybullet_data as pb_data
@@ -36,7 +37,21 @@ if __name__ == "__main__":
         use_traybox= True,
         object_names= [
             "YcbBanana",
+            # "YcbChipsCan",
+            # "YcbCrackerBox",
+            "YcbFoamBrick",
+            # "YcbGelatinBox",
             "YcbHammer",
+            # "YcbMasterChefCan",
+            # "YcbMediumClamp",
+            "YcbMustardBottle",
+            "YcbPear",
+            "YcbPottedMeatCan",
+            # "YcbPowerDrill",
+            # "YcbScissors",
+            "YcbStrawberry",
+            "YcbTennisBall",
+            # "YcbTomatoSoupCan",
         ],
         position_sample_region= None,
         robot_kwargs= dict(

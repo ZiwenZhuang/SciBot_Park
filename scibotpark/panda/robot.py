@@ -33,8 +33,8 @@ class PandaRobot(PybulletRobot):
             [0.8, 0.8, 0.4],
         ]) # relative to base frame
         self.initial_position_space = np.array([
-            [0.1, -0.5, 0.02],
-            [0.5, 0.5, 0.2],
+            [0.1, -0.5, 0.2],
+            [0.5, 0.5, 0.4],
         ]) # relative to base frame
         self._get_finger_position_from_cmd = lambda x: (x+1) / 50. # from [-1, 1] to [0, 2/50]
         self.valid_joint_types = [p.JOINT_REVOLUTE, p.JOINT_PRISMATIC]
