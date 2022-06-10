@@ -66,9 +66,11 @@ class PandaEnv(PybulletEnv, Env):
 
 if __name__ == "__main__":
     from scibotpark.panda.utils import get_keyboard_action
+    import scibotpark, gym
     import time
     # performing test
-    env = PandaEnv(
+    env = gym.make(
+        id= "PandaEnv",
         robot_kwargs= dict(
             arm_control_mode= "translation",
         ),

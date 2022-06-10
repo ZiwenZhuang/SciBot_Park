@@ -5,7 +5,7 @@ from pybullet_utils import bullet_client
 
 from gym import spaces, Env
 
-from scibotpark.unitree.base import UnitreeEnv
+from scibotpark.quadruped_robot.unitree.base import UnitreeEnv
 
 class UnitreeLocomotionEnv(UnitreeEnv):
     def __init__(self,

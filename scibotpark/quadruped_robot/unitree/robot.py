@@ -9,7 +9,7 @@ from pybullet_utils import bullet_client
 current_file_path = os.path.dirname(os.path.realpath(__file__))
 
 from scibotpark.pybullet.robot import PybulletRobot, DeltaPositionControlMixin
-from scibotpark.unitree.peripherals import unitree_camera_orientations, unitree_camera_positions
+from scibotpark.quadruped_robot.unitree.peripherals import unitree_camera_orientations, unitree_camera_positions
 
 class UniTreeRobot(DeltaPositionControlMixin, PybulletRobot):
     """ The general interface to build UniTree robot into the environment.

@@ -31,9 +31,11 @@ class PandaManipulationEnv(MultiObjectsMixin, PandaEnv):
 
 if __name__ == "__main__":
     from scibotpark.panda.utils import get_keyboard_action
+    import scibotpark, gym
     import time
     
-    env = PandaManipulationEnv(
+    env = gym.make(
+        id= "PandaManipulation-v0",
         use_traybox= True,
         object_names= [
             "YcbBanana",

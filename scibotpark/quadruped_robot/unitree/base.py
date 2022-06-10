@@ -6,7 +6,7 @@ from pybullet_utils import bullet_client
 import gym
 from gym import spaces, Env
 
-from scibotpark.unitree.robot import UniTreeRobot
+from scibotpark.quadruped_robot.unitree.robot import UniTreeRobot
 from scibotpark.pybullet.base import PybulletEnv
 
 class UnitreeEnv(PybulletEnv, Env):
