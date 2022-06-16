@@ -1,4 +1,4 @@
-
+from abc import abstractmethod
 import os
 import numpy as np
 
@@ -52,8 +52,10 @@ class PybulletEnv:
         pass # no surroundings in the world (in this class)
 
     def _reset_robot(self, *args, **kwargs):
-        raise NotImplementedError
-            
+        if not self.robot is None:
+            self.robot.reset(self.robot_kwargs.get("default_base_transform", None))
+
+    @abstractmethod
     def _get_obs(self):
         raise NotImplementedError
     

@@ -5,9 +5,9 @@ from pybullet_utils import bullet_client
 
 from gym import spaces, Env
 
-from scibotpark.quadruped_robot.unitree.base import UnitreeEnv
+from scibotpark.locomotion.base import LocomotionEnv
 
-class UnitreeLocomotionEnv(UnitreeEnv):
+class UnitreeForwardEnv(LocomotionEnv):
     def __init__(self,
             *args,
             include_vision_obs= False, # no obs_type
@@ -28,10 +28,11 @@ class UnitreeLocomotionEnv(UnitreeEnv):
         self.alive_height_range = alive_height_range
         self.alive_row_pitch_limit = alive_row_pitch_limit
         self.horizon = horizon
-        obs_type= ["joints", "inertial"]
-        if self.include_vision_obs: obs_type.append("vision")
+        obs_types= ["joints", "inertial"]
+        if self.include_vision_obs: obs_types.append("vision")
+        kwargs.pop("obs_types")
 
-        super().__init__(*args, obs_type= obs_type, **kwargs)
+        super().__init__(*args, obs_types= obs_types, **kwargs)
 
         self.last_action = np.zeros(self.action_space.shape, dtype= np.float32)
 
@@ -74,26 +75,13 @@ class UnitreeLocomotionEnv(UnitreeEnv):
 
         if self.include_vision_obs:
             obs = dict(
-                vision= base_obs["vision"],
+                vision= self.robot.get_onboard_camera_image(),
                 proprioceptive= obs,
             )
 
         return obs
 
-    def step(self, action):
-        action = np.clip(action, self.action_space.low, self.action_space.high)
-        self.last_action = action
-
-        self.step_simulation_from_action(action)
-
-        obs = self._get_obs()
-
-        reward, reward_info = self._compute_reward()
-        done = self.is_done()
-        info = reward_info
-        return obs, reward, done, info
-
-    def _compute_reward(self):
+    def compute_reward(self, *args, **kwargs):
         # compute reward, which requies sophisticated computation at each timestep
         info = {}; reward = 0
         if self.alive_reward_ratio > 0:
@@ -144,10 +132,14 @@ class UnitreeLocomotionEnv(UnitreeEnv):
         dead = self.compute_alive_reward() < 0
         return reached_horizon or dead
 
+    def step(self, action):
+        self.last_action = action
+        return super().step(action)
+
 if __name__ == "__main__":
     import time
 
-    env = UnitreeLocomotionEnv(
+    env = UnitreeForwardEnv(
         include_vision_obs= False, # no obs_type
         forward_reward_ratio= 1,
         alive_reward_ratio= 1,

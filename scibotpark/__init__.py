@@ -5,7 +5,7 @@ Thus, you don't need to intall libraries that are not required in the environmen
 """
 gym.register(
     "UnitreeLocomotion-v0",
-    entry_point= "scibotpark.quadruped_robot.unitree.locomotion.base:UnitreeLocomotionEnv",
+    entry_point= "scibotpark.locomotion.unitree.locomotion:UnitreeForwardEnv",
 )
 gym.register(
     "Panda-v0",
