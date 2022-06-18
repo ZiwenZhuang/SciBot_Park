@@ -15,3 +15,7 @@ gym.register(
     "PandaManipulation-v0",
     entry_point= "scibotpark.panda.manipulation.base:PandaManipulationEnv",
 )
+gym.register(
+    "MetaQuadrupedForward-v0",
+    entry_point= "scibotpark.locomotion.meta_robot:MetaQuadrupedForward",
+)

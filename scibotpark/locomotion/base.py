@@ -13,7 +13,7 @@ class LocomotionEnv(PybulletEnv, Env):
             RobotCls,
             robot_kwargs= dict(),
             render_kwargs= dict(),
-            obs_types= ["joints"], # by default, contains "joints", "inertial",
+            obs_types= ["joints", "inertial"], # by default, contains "joints", "inertial",
             horizon= int(1e3),
             **kwargs,
         ):
