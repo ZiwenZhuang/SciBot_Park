@@ -48,6 +48,7 @@ class MetaQuadrupedForward(LocomotionEnv):
                 base_observation_space["inertial"].high,
                 self.action_space.high,
             ]),
+            dtype= np.float32
         )
         return observation_space
 
@@ -57,7 +58,7 @@ class MetaQuadrupedForward(LocomotionEnv):
             base_obs["joints"],
             base_obs["inertial"],
             self.last_action,
-        ])
+        ]).astype(np.float32)
         return obs
 
     def set_max_height(self):
@@ -67,6 +68,17 @@ class MetaQuadrupedForward(LocomotionEnv):
         thigh_length = self.robot.configuration["thigh_size"][1]
         shin_length = self.robot.configuration["shin_size"][1]
         self.max_height = thigh_length + shin_length
+
+    def _build_robot(self):
+        super()._build_robot()
+        self.robot_kwargs["default_base_transform"] = np.zeros((7,), dtype= np.float32)
+        
+        thigh_length = self.robot.configuration["thigh_size"][1]
+        shin_length = self.robot.configuration["shin_size"][1]
+        foot_size = self.robot.configuration["foot_size"]
+        default_height = np.sqrt(1/2) * (thigh_length + shin_length) + foot_size * 2
+        self.robot_kwargs["default_base_transform"][2] = default_height
+        self.robot_kwargs["default_base_transform"][6] = 1
 
     def _reset_robot(self, *args, **kwargs):
         if self.resample_on_reset:
@@ -103,8 +115,13 @@ class MetaQuadrupedForward(LocomotionEnv):
         if inertial_data["position"][2] > self.max_height:
             return -1.
         
+        # check if base touches the ground
         if len(self.pb_client.getContactPoints(self.robot.body_id, self.plane_id, -1, -1)) > 0:
             return -1.
+        # check if hips touch the ground
+        for hip_id in [0, 6, 12, 18]:
+            if len(self.pb_client.getContactPoints(self.robot.body_id, self.plane_id, hip_id, -1)) > 0:
+                return -1.
         
         rotation = inertial_data["rotation"]
         if np.abs(rotation[0]) > self.alive_row_pitch_limit or np.abs(rotation[1]) > self.alive_row_pitch_limit:
@@ -132,11 +149,15 @@ class MetaQuadrupedForward(LocomotionEnv):
 
     def step(self, action):
         self.last_action = action
-        return super().step(action)
+        o, r_i, d, i = super().step(action)
+        r = r_i[0]; i.update(r_i[1])
+        i.update(dict(timeout= super().is_done()))
+        return o, r, d, i
         
-
 if __name__ == "__main__":
     import time
+    import matplotlib.pyplot as plt
+    clients = [bullet_client.BulletClient(connection_mode= p.DIRECT) for _ in range(1)]
     env = MetaQuadrupedForward(
         robot_kwargs= dict(),
         robot_config_sampler_kwargs= dict(
@@ -152,9 +173,28 @@ if __name__ == "__main__":
     )
     obs = env.reset()
     action_space = env.action_space
+    observation_space = env.observation_space
+    observation_space.contains(obs)
+    print("action: {}".format(action_space))
+    print("obs: {}".format(observation_space))
     while True:
         action = action_space.sample()
         obs, reward, done, info = env.step(action)
+        img = env.render(
+            mode= "vis",
+            width= 320,
+            height= 240,
+            view_matrix_kwargs= dict(
+                distance= 0.8,
+                roll= 0.,
+                pitch= -30,
+                yaw= -60.,
+                upAxisIndex= 2, # z axis for up.
+            ),
+        )
+        # plt.imshow(img); plt.show()
+        # print(action, obs, end= "\r")
         time.sleep(1/250)
         if done:
             obs = env.reset()
+            time.sleep(1/10)

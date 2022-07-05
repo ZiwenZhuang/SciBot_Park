@@ -208,7 +208,7 @@ class UniTreeRobot(DeltaPositionControlMixin, PybulletRobot):
         else:
             raise NotImplementedError("Not implemented modal {}".format(modal))
 
-    def get_inertial_data(self):
+    def get_inertial_data(self, *args, **kwargs):
         """
         Return:
             dict:

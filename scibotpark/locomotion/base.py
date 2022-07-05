@@ -15,10 +15,16 @@ class LocomotionEnv(PybulletEnv, Env):
             render_kwargs= dict(),
             obs_types= ["joints", "inertial"], # by default, contains "joints", "inertial",
             horizon= int(1e3),
+            simulate_timestep= 1./240,
             **kwargs,
         ):
         save__init__args(locals())
         super().__init__(**kwargs)
+        self.default_camera_fov_kwargs = dict(
+            fov= 60,
+            nearVal= 0.01,
+            farVal= 10,
+        )
 
     def _build_robot(self):
         self._robot = self.RobotCls(pb_client= self.pb_client, **self.robot_kwargs)
@@ -84,3 +90,31 @@ class LocomotionEnv(PybulletEnv, Env):
         done = self.is_done()
         info = {}
         return obs, reward, done, info
+
+    def render(self, mode= "vis", **render_kwargs):
+        if mode == "vis":
+            """ Render array for recording visualization """
+            robot_inertial = self.robot.get_inertial_data()
+            view_matrix_kwargs = dict(
+                distance= 0.8,
+                roll= 0.,
+                pitch= -30,
+                yaw= 0.,
+                upAxisIndex= 2, # z axis for up.
+            ); view_matrix_kwargs.update(render_kwargs.get("view_matrix_kwargs", dict()))
+            view_matrix_kwargs["yaw"] += robot_inertial["rotation"][2]
+            image_data = self.pb_client.getCameraImage(
+                width= render_kwargs.get("width", 320),
+                height= render_kwargs.get("height", 240),
+                viewMatrix= self.pb_client.computeViewMatrixFromYawPitchRoll(
+                    cameraTargetPosition= robot_inertial["position"],
+                    **view_matrix_kwargs,
+                ),
+                projectionMatrix= self.pb_client.computeProjectionMatrixFOV(
+                    aspect= render_kwargs.get("width", 320)/render_kwargs.get("height", 240),
+                    **self.default_camera_fov_kwargs
+                ),
+            )
+            return image_data[2]
+        else:
+            raise NotImplementedError("Not implemented renderer for mode: {}".format(mode))

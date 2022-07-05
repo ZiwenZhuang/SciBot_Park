@@ -74,11 +74,28 @@ class MetaQuadrupedRobot(DeltaPositionControlMixin, PybulletRobot):
             self.all_joint_position_limits[:, joint_id] = [0, np.pi*8/9]
 
     def get_joint_limits(self, modal="position", valid_joint_only=True):
-        assert modal == "position", "Only position limits are supported, get {}".format(modal)
-        if valid_joint_only:
-            return self.all_joint_position_limits[:, self.valid_joint_ids]
-        else:
-            return self.all_joint_position_limits
+        # assert modal == "position", "Only position limits are supported, get {}".format(modal)
+        if modal == "position":
+            if valid_joint_only:
+                return self.all_joint_position_limits[:, self.valid_joint_ids]
+            else:
+                return self.all_joint_position_limits
+        elif modal == "velocity":
+            # This limit only provides a shape, the space is not meaningful.
+            num_joints = len(self.valid_joint_ids) if valid_joint_only else self.all_joint_position_limits.shape[1]
+            limit = np.ones((2, num_joints)) * np.inf
+            limit[0] = -np.inf
+            return limit
+        elif modal == "torque":
+            limit = np.array([self.pb_control_kwargs["forces"], self.pb_control_kwargs["forces"]])
+            limit[0] *= -1
+            if not valid_joint_only:
+                num_joints = len(self.valid_joint_ids) if valid_joint_only else self.all_joint_position_limits.shape[1]
+                limit_ = np.ones((2, num_joints)) * np.inf
+                limit_[0] = -np.inf
+                limit_[:, self.valid_joint_ids] = limit
+                limit = limit_
+            return limit
 
     def set_robot_dynamics(self):
         for joint_id in self.valid_joint_ids:
@@ -183,62 +200,62 @@ class MetaQuadrupedRobot(DeltaPositionControlMixin, PybulletRobot):
 
     def get_component_ids(self, configuration):
         component_ids = dict(
-            base_collision_id = p.createCollisionShape(p.GEOM_BOX,
+            base_collision_id = self.pb_client.createCollisionShape(p.GEOM_BOX,
                 halfExtents=configuration["base_size"],
             ),
-            base_visual_id = p.createVisualShape(p.GEOM_BOX,
+            base_visual_id = self.pb_client.createVisualShape(p.GEOM_BOX,
                 halfExtents=configuration["base_size"],
                 rgbaColor=[1, 0, 0, 1],
             ),
-            hip_collision_id = p.createCollisionShape(p.GEOM_CYLINDER,
+            hip_collision_id = self.pb_client.createCollisionShape(p.GEOM_CYLINDER,
                 radius=configuration["hip_size"][0],
                 height=configuration["hip_size"][1],
             ),
-            hip_visual_id = p.createVisualShape(p.GEOM_CYLINDER,
+            hip_visual_id = self.pb_client.createVisualShape(p.GEOM_CYLINDER,
                 radius=configuration["hip_size"][0],
                 length=configuration["hip_size"][1],
                 rgbaColor=[1, 1, 0, 1],
             ),
-            hip_thigh_collision_id = p.createCollisionShape(p.GEOM_CYLINDER,
+            hip_thigh_collision_id = self.pb_client.createCollisionShape(p.GEOM_CYLINDER,
                 radius=configuration["thigh_size"][0],
                 height=2*configuration["thigh_size"][0],
             ),
-            hip_thigh_visual_id = p.createVisualShape(p.GEOM_CYLINDER,
+            hip_thigh_visual_id = self.pb_client.createVisualShape(p.GEOM_CYLINDER,
                 radius=configuration["thigh_size"][0],
                 length=2*configuration["thigh_size"][0],
                 rgbaColor=[1, 0, 0.6, 1],
             ),
-            thigh_collision_id = p.createCollisionShape(p.GEOM_CYLINDER,
+            thigh_collision_id = self.pb_client.createCollisionShape(p.GEOM_CYLINDER,
                 radius=configuration["thigh_size"][0],
                 height=configuration["thigh_size"][1],
             ),
-            thigh_visual_id = p.createVisualShape(p.GEOM_CYLINDER,
+            thigh_visual_id = self.pb_client.createVisualShape(p.GEOM_CYLINDER,
                 radius=configuration["thigh_size"][0],
                 length=configuration["thigh_size"][1],
                 rgbaColor=[0.5, 0.5, 0.5, 1],
             ),
-            knee_collision_id = p.createCollisionShape(p.GEOM_CYLINDER,
+            knee_collision_id = self.pb_client.createCollisionShape(p.GEOM_CYLINDER,
                 radius=configuration["shin_size"][0],
                 height=2*configuration["shin_size"][0],
             ),
-            knee_visual_id = p.createVisualShape(p.GEOM_CYLINDER,
+            knee_visual_id = self.pb_client.createVisualShape(p.GEOM_CYLINDER,
                 radius=configuration["shin_size"][0],
                 length=2*configuration["shin_size"][0],
                 rgbaColor=[1, 0, 0.6, 1],
             ),
-            shin_collision_id = p.createCollisionShape(p.GEOM_CYLINDER,
+            shin_collision_id = self.pb_client.createCollisionShape(p.GEOM_CYLINDER,
                 radius=configuration["shin_size"][0],
                 height=configuration["shin_size"][1],
             ),
-            shin_visual_id = p.createVisualShape(p.GEOM_CYLINDER,
+            shin_visual_id = self.pb_client.createVisualShape(p.GEOM_CYLINDER,
                 radius=configuration["shin_size"][0],
                 length=configuration["shin_size"][1],
                 rgbaColor=[0.5, 0.1, 0.5, 1],
             ),
-            foot_collision_id = p.createCollisionShape(p.GEOM_SPHERE,
+            foot_collision_id = self.pb_client.createCollisionShape(p.GEOM_SPHERE,
                 radius=configuration["foot_size"],
             ),
-            foot_visual_id = p.createVisualShape(p.GEOM_SPHERE,
+            foot_visual_id = self.pb_client.createVisualShape(p.GEOM_SPHERE,
                 radius=configuration["foot_size"],
                 rgbaColor=[0.1, 0.1, 0.1, 1],
             ),

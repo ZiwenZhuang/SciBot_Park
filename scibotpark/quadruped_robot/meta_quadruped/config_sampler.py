@@ -7,16 +7,16 @@ from scibotpark.utils.quick_args import save__init__args
 
 class MetaQuadruped_ConfigSampler:
     def __init__(self,
-            base_mass_range= (5.0, 20.0), # kg
-            base_length_range= (0.05, 0.4), # meter, x axis
+            base_mass_range= (10., 25.0), # kg
+            base_length_range= (0.2, 0.4), # meter, x axis
             base_width_range= (0.02, 0.08), # meter, y axis
             base_height_range= (0.02, 0.1), # meter, z axis
-            hip_radius_range= (0.006, 0.04), # meter,
-            thigh_mass_range= (0.1, 2), # kg
-            thigh_length_range= (0.1, 0.3), # meter,
-            shin_mass_range= (0.1, 2), # kg
-            shin_length_range= (0.12, 0.3), # meter,
-            foot_mass_range= (0.01, 0.2), # kg
+            hip_radius_range= (0.006, 0.05), # meter,
+            thigh_mass_range= (0.1, 0.5), # kg
+            thigh_length_range= (0.1, 0.2), # meter,
+            shin_mass_range= (0.1, 0.5), # kg
+            shin_length_range= (0.12, 0.2), # meter,
+            foot_mass_range= (0.01, 0.1), # kg
             foot_size_range= (0.01, 0.02), # meter,
             motor_torque_range= (25, 40), # Nm
         ):

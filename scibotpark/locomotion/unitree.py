@@ -6,6 +6,7 @@ from pybullet_utils import bullet_client
 from gym import spaces, Env
 
 from scibotpark.locomotion.base import LocomotionEnv
+from scibotpark.quadruped_robot.unitree.robot import UniTreeRobot
 
 class UnitreeForwardEnv(LocomotionEnv):
     def __init__(self,
@@ -30,9 +31,9 @@ class UnitreeForwardEnv(LocomotionEnv):
         self.horizon = horizon
         obs_types= ["joints", "inertial"]
         if self.include_vision_obs: obs_types.append("vision")
-        kwargs.pop("obs_types")
+        if "obs_types" in kwargs: kwargs.pop("obs_types")
 
-        super().__init__(*args, obs_types= obs_types, **kwargs)
+        super().__init__(*args, RobotCls= UniTreeRobot, obs_types= obs_types, **kwargs)
 
         self.last_action = np.zeros(self.action_space.shape, dtype= np.float32)
 
@@ -152,8 +153,7 @@ if __name__ == "__main__":
             simulate_timestep= 1./500,
             default_base_transform= [0, 0, 0.42, 0, 0, 0, 1],
         ),
-        connection_mode= p.GUI,
-        bullet_debug= True,
+        pb_client= bullet_client.BulletClient(connection_mode= p.GUI)
     )
     obs = env.reset()
 

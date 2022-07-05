@@ -168,6 +168,23 @@ class PybulletRobot:
                 **control_kwargs,
                 **self.pb_control_kwargs,
             )
+    
+    @abstractmethod
+    def get_inertial_data(self, *args, **kwargs):
+        """
+        Return:
+            dict:
+                position: (3,)
+                linear_velocity: (3,)
+                rotation: (3,)
+                angular_velocity: (3,)
+        """
+        return dict(
+            position= None,
+            linear_velocity= None,
+            rotation= None,
+            angular_velocity= None,
+        )
 
     def __del__(self):
         """ Incase the robot multibody in pybullet is not desctoyed. """

@@ -15,6 +15,7 @@ class PybulletEnv:
             additional_search_path= None,
             pb_object_dynamics_parameter= dict(),
             pb_engine_parameter= dict(),
+            simulate_timestep= None,
             pb_client= None
         ):
         """ store parameters and initialize world and robot
@@ -34,6 +35,9 @@ class PybulletEnv:
         self.pb_client.setRealTimeSimulation(0)
         self.pb_client.setPhysicsEngineParameter(**self.pb_engine_parameter)
         self.pb_client.setGravity(0, 0, -9.81)
+        if hasattr(self, "simulate_timestep") and self.simulate_timestep:
+            self.pb_client.setTimeStep(self.simulate_timestep)
+        
         self._nsteps_after_reset = 0 # use to set done based on horizon.
 
     def _build_surroundings(self):
