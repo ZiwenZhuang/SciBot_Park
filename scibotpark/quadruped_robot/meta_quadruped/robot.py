@@ -21,6 +21,7 @@ class MetaQuadrupedRobot(DeltaPositionControlMixin, PybulletRobot):
             shin_size= (0.01, 0.12), # (radius, height), capsule
             foot_mass= 0.01, # kg
             foot_size= 0.012, # radius, sphere
+            foot_lateral_friction= 0.5,
             leg_bend_angle= np.pi/4, # rad
             pb_control_kwargs= dict(),
             default_base_transform= [0, 0, 0.3, 0, 0, 0, 1],
@@ -37,6 +38,7 @@ class MetaQuadrupedRobot(DeltaPositionControlMixin, PybulletRobot):
             shin_size = shin_size,
             foot_mass = foot_mass,
             foot_size = foot_size,
+            foot_lateral_friction = foot_lateral_friction
         )
         self.leg_bend_angle = leg_bend_angle
         self.valid_joint_types = [p.JOINT_REVOLUTE, p.JOINT_PRISMATIC]
@@ -102,6 +104,10 @@ class MetaQuadrupedRobot(DeltaPositionControlMixin, PybulletRobot):
             self.pb_client.changeDynamics(self.body_id, joint_id,
                 jointLowerLimit=self.all_joint_position_limits[0, joint_id],
                 jointUpperLimit=self.all_joint_position_limits[1, joint_id],
+            )
+        for link_id in [4, 10, 16, 22]: # foot
+            self.pb_client.changeDynamics(self.body_id, link_id,
+                lateralFriction= self.configuration["foot_lateral_friction"],
             )
 
     def build_multibody(self, component_ids, configuration):

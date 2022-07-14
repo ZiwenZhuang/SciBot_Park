@@ -20,13 +20,14 @@ class MetaQuadrupedForward(LocomotionEnv):
             reward_ratios= dict(),
             resample_on_reset= False,
             alive_row_pitch_limit= np.pi/4,
+            alive_height_ratio= (0.4, 1.2),
             **kwargs,
         ):
         save__init__args(locals())
         self.robot_config_sampler = RobotConfigSampler(**robot_config_sampler_kwargs)
         self.robot_kwargs = self.robot_config_sampler.sample(self.robot_kwargs)
         super().__init__(RobotCls= RobotCls, robot_kwargs= self.robot_kwargs, **kwargs)
-        self.set_max_height()
+        self.set_height_limit()
         self.last_action = np.zeros(self.action_space.shape, dtype= np.float32)
 
     def reset(self, *args, **kwargs):
@@ -61,22 +62,26 @@ class MetaQuadrupedForward(LocomotionEnv):
         ]).astype(np.float32)
         return obs
 
-    def set_max_height(self):
+    def set_height_limit(self):
         """ Compute the maximum base height based on the robot, in order to prevent the robot from
         jumping out of the ground.
         """
         thigh_length = self.robot.configuration["thigh_size"][1]
         shin_length = self.robot.configuration["shin_size"][1]
-        self.max_height = thigh_length + shin_length
+        self.alive_height_range = np.array((thigh_length + shin_length,), dtype= np.float).repeat(2,)
+        self.alive_height_range[0] *= self.alive_height_ratio[0]
+        self.alive_height_range[1] *= self.alive_height_ratio[1]
 
     def _build_robot(self):
         super()._build_robot()
         self.robot_kwargs["default_base_transform"] = np.zeros((7,), dtype= np.float32)
         
+        hip_radius = self.robot.configuration["hip_size"][0]
+        thigh_radius = self.robot.configuration["thigh_size"][0]
         thigh_length = self.robot.configuration["thigh_size"][1]
         shin_length = self.robot.configuration["shin_size"][1]
-        foot_size = self.robot.configuration["foot_size"]
-        default_height = np.sqrt(1/2) * (thigh_length + shin_length) + foot_size * 2
+        # foot_size = self.robot.configuration["foot_size"]
+        default_height = 2 * np.sqrt(1/3) * np.sqrt(1/2) * (thigh_length + shin_length) - hip_radius - thigh_radius * 2
         self.robot_kwargs["default_base_transform"][2] = default_height
         self.robot_kwargs["default_base_transform"][6] = 1
 
@@ -85,7 +90,7 @@ class MetaQuadrupedForward(LocomotionEnv):
             self.robot_kwargs = self.robot_config_sampler.sample(self.robot_kwargs)
             delattr(self, "_robot")
             self._build_robot()
-            self.set_max_height()
+            self.set_height_limit()
         return super()._reset_robot(*args, **kwargs)
 
     def compute_reward(self, *args, **kwargs):
@@ -111,15 +116,19 @@ class MetaQuadrupedForward(LocomotionEnv):
 
     def compute_alive_reward(self):
         inertial_data = self.robot.get_inertial_data()
+        hip_ids = [0, 6, 12, 18]
         
-        if inertial_data["position"][2] > self.max_height:
-            return -1.
+        # check if any hip get higher than max_height
+        for hip_id in hip_ids:
+            hip_position = self.pb_client.getLinkState(self.robot.body_id, hip_id)[4]
+            if hip_position[2] > self.alive_height_range[1] or hip_position[2] < self.alive_height_range[0]:
+                return -1.
         
         # check if base touches the ground
         if len(self.pb_client.getContactPoints(self.robot.body_id, self.plane_id, -1, -1)) > 0:
             return -1.
         # check if hips touch the ground
-        for hip_id in [0, 6, 12, 18]:
+        for hip_id in hip_ids:
             if len(self.pb_client.getContactPoints(self.robot.body_id, self.plane_id, hip_id, -1)) > 0:
                 return -1.
         
@@ -161,6 +170,18 @@ if __name__ == "__main__":
     env = MetaQuadrupedForward(
         robot_kwargs= dict(),
         robot_config_sampler_kwargs= dict(
+            base_mass_range= (10., 25.0), # kg
+            base_length_range= (0.16, 0.25), # meter, x axis
+            base_width_range= (0.02, 0.08), # meter, y axis
+            base_height_range= (0.02, 0.08), # meter, z axis
+            hip_radius_range= (0.006, 0.01), # meter,
+            thigh_mass_range= (0.1, 0.2), # kg
+            thigh_length_range= (0.12, 0.16), # meter,
+            shin_mass_range= (0.1, 0.2), # kg
+            shin_length_range= (0.12, 0.16), # meter,
+            foot_mass_range= (0.01, 0.1), # kg
+            foot_size_range= (0.01, 0.02), # meter,
+            motor_torque_range= (25, 40), # Nm
         ),
         reward_ratios= dict(
             alive_reward= 1.,
@@ -169,6 +190,7 @@ if __name__ == "__main__":
             heading_reward= 1.,
         ),
         resample_on_reset= True,
+        nsubsteps= 10,
         pb_client= bullet_client.BulletClient(connection_mode= p.GUI),
     )
     obs = env.reset()
@@ -178,7 +200,8 @@ if __name__ == "__main__":
     print("action: {}".format(action_space))
     print("obs: {}".format(observation_space))
     while True:
-        action = action_space.sample()
+        action = np.zeros(action_space.shape)
+        # action = action_space.sample()
         obs, reward, done, info = env.step(action)
         img = env.render(
             mode= "vis",
@@ -193,8 +216,8 @@ if __name__ == "__main__":
             ),
         )
         # plt.imshow(img); plt.show()
-        # print(action, obs, end= "\r")
-        time.sleep(1/250)
+        time.sleep(1/5)
         if done:
             obs = env.reset()
-            time.sleep(1/10)
+            time.sleep(3/10)
+        print(obs[:3], end= "\r")

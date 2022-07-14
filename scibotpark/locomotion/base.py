@@ -15,7 +15,7 @@ class LocomotionEnv(PybulletEnv, Env):
             render_kwargs= dict(),
             obs_types= ["joints", "inertial"], # by default, contains "joints", "inertial",
             horizon= int(1e3),
-            simulate_timestep= 1./240,
+            simulate_timestep= 1./500,
             **kwargs,
         ):
         save__init__args(locals())

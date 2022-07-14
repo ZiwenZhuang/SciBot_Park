@@ -8,10 +8,10 @@ from scibotpark.utils.quick_args import save__init__args
 class MetaQuadruped_ConfigSampler:
     def __init__(self,
             base_mass_range= (10., 25.0), # kg
-            base_length_range= (0.2, 0.4), # meter, x axis
+            base_length_range= (0.2, 0.3), # meter, x axis
             base_width_range= (0.02, 0.08), # meter, y axis
-            base_height_range= (0.02, 0.1), # meter, z axis
-            hip_radius_range= (0.006, 0.05), # meter,
+            base_height_range= (0.02, 0.05), # meter, z axis
+            hip_radius_range= (0.006, 0.01), # meter,
             thigh_mass_range= (0.1, 0.5), # kg
             thigh_length_range= (0.1, 0.2), # meter,
             shin_mass_range= (0.1, 0.5), # kg
@@ -19,6 +19,7 @@ class MetaQuadruped_ConfigSampler:
             foot_mass_range= (0.01, 0.1), # kg
             foot_size_range= (0.01, 0.02), # meter,
             motor_torque_range= (25, 40), # Nm
+            foot_lateral_friction_range= (0.4, 0.5), # 0 ~ 1
         ):
         save__init__args(locals())
     
@@ -46,6 +47,7 @@ class MetaQuadruped_ConfigSampler:
             ),
             foot_mass= np.random.uniform(*self.foot_mass_range),
             foot_size= (np.random.uniform(*self.foot_size_range)),
+            foot_lateral_friction= np.random.uniform(*self.foot_lateral_friction_range),
         ))
         pb_control_kwargs = dict(
             forces= [np.random.uniform(*self.motor_torque_range) for _ in range(12)],
