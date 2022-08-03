@@ -19,3 +19,7 @@ gym.register(
     "MetaQuadrupedForward-v0",
     entry_point= "scibotpark.locomotion.meta_robot:MetaQuadrupedForward",
 )
+gym.register(
+    "RobustMetaQuadrupedLocomotion-v0",
+    entry_point= "scibotpark.locomotion.robust_meta_quadruped:RobustMetaQuadrupedLocomotion",
+)

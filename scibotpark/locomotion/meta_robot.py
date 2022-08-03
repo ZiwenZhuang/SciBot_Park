@@ -21,6 +21,7 @@ class MetaQuadrupedForward(LocomotionEnv):
             resample_on_reset= False,
             alive_row_pitch_limit= np.pi/4,
             alive_height_ratio= (0.4, 1.2),
+            dead_penalty= 20., # alive reward without factor is 1. But the dead penalty should be tunable
             **kwargs,
         ):
         save__init__args(locals())
@@ -112,6 +113,10 @@ class MetaQuadrupedForward(LocomotionEnv):
             heading_reward = self.compute_heading_reward()
             reward += self.reward_ratios.get("heading_reward", 0) * heading_reward
             info["heading_reward"] = heading_reward
+        if self.reward_ratios.get("joint_velocity_reward", 0) > 0:
+            joint_velocity_reward = self.compute_joint_velocity_reward()
+            reward += self.reward_ratios.get("joint_velocity_reward", 0) * joint_velocity_reward
+            info["joint_velocity_reward"] = joint_velocity_reward
         return reward, info
 
     def compute_alive_reward(self):
@@ -122,19 +127,19 @@ class MetaQuadrupedForward(LocomotionEnv):
         for hip_id in hip_ids:
             hip_position = self.pb_client.getLinkState(self.robot.body_id, hip_id)[4]
             if hip_position[2] > self.alive_height_range[1] or hip_position[2] < self.alive_height_range[0]:
-                return -1.
+                return -self.dead_penalty
         
         # check if base touches the ground
         if len(self.pb_client.getContactPoints(self.robot.body_id, self.plane_id, -1, -1)) > 0:
-            return -1.
+            return -self.dead_penalty
         # check if hips touch the ground
         for hip_id in hip_ids:
             if len(self.pb_client.getContactPoints(self.robot.body_id, self.plane_id, hip_id, -1)) > 0:
-                return -1.
+                return -self.dead_penalty
         
         rotation = inertial_data["rotation"]
         if np.abs(rotation[0]) > self.alive_row_pitch_limit or np.abs(rotation[1]) > self.alive_row_pitch_limit:
-            return -1.
+            return -self.dead_penalty
         
         return 1.
 
@@ -150,6 +155,10 @@ class MetaQuadrupedForward(LocomotionEnv):
         inertial_data = self.robot.get_inertial_data()
         heading_reward = -np.abs(inertial_data["rotation"][2])
         return heading_reward
+    
+    def compute_joint_velocity_reward(self):
+        velocity = self.robot.get_joint_states("velocity")
+        return -np.power(np.linalg.norm(velocity), 2) # negative of total joint velocity norm
 
     def is_done(self):
         reached_horizon = super().is_done()
@@ -158,8 +167,7 @@ class MetaQuadrupedForward(LocomotionEnv):
 
     def step(self, action):
         self.last_action = action
-        o, r_i, d, i = super().step(action)
-        r = r_i[0]; i.update(r_i[1])
+        o, r, d, i = super().step(action)
         i.update(dict(timeout= super().is_done()))
         return o, r, d, i
         
