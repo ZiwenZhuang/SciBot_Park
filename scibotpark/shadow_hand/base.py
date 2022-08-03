@@ -44,8 +44,8 @@ class ShadowHandEnv(PybulletEnv, Env):
     def _get_obs(self):
         return self.robot.get_joint_states()
 
-    def _compute_reward(self, obs):
-        return 0.
+    def compute_reward(self, obs):
+        return 0., dict()
 
     def get_hand_reached_positions(self):
         """ return current all finger reached positions """
@@ -89,7 +89,7 @@ class ShadowHandEnv(PybulletEnv, Env):
         self.step_simulation_from_action(action)
 
         obs = self._get_obs()
-        reward = self.compute_reward(obs)
+        reward, reward_info = self.compute_reward(obs)
         done = self.is_done(obs)
-        info = {}
+        info = {}; info.update(reward_info)
         return obs, reward, done, info

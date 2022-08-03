@@ -78,7 +78,7 @@ class LocomotionEnv(PybulletEnv, Env):
             return obs
 
     def compute_reward(self, next_obs, **kwargs):
-        return 0
+        return 0, dict()
 
     def step(self, action):
         action = np.clip(action, self.action_space.low, self.action_space.high)
@@ -86,9 +86,9 @@ class LocomotionEnv(PybulletEnv, Env):
         self.step_simulation_from_action(action)
 
         obs = self._get_obs()
-        reward = self.compute_reward(obs)
+        reward, reward_info = self.compute_reward(obs)
         done = self.is_done()
-        info = {}
+        info = {}; info.update(reward_info)
         return obs, reward, done, info
 
     def render(self, mode= "vis", **render_kwargs):
