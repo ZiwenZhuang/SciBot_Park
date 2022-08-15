@@ -15,7 +15,6 @@ class PybulletEnv:
             additional_search_path= None,
             pb_object_dynamics_parameter= dict(),
             pb_engine_parameter= dict(),
-            simulate_timestep= None,
             pb_client= None
         ):
         """ store parameters and initialize world and robot
