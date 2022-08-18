@@ -13,12 +13,14 @@ from scibotpark.locomotion.perturbation import RobotBasePerturbationMixin
 class RobustMetaQuadrupedLocomotion(NoisySensorMixin, RobotBasePerturbationMixin, MetaQuadrupedForward):
     def __init__(self, *args,
             moving_max_speeds= (0.1, 0.1, 0.2), # x, y, raw expectation speed
+            binary_move_cmd= False, # if true, the cmd will be only max speed or zero.
             move_prob= 0.9, # the other option is to let the robot stand still
             forward_reward_max= 1., # the actual forward reward will be max - norm(speed diff)
             **kwargs,
         ):
         super().__init__(*args, **kwargs)
         self.moving_max_speeds = moving_max_speeds if isinstance(moving_max_speeds, np.ndarray) else np.array(moving_max_speeds)
+        self.binary_move_cmd = binary_move_cmd
         self.move_prob = move_prob
         self.forward_reward_max = forward_reward_max
         self.moving_cmd = np.zeros((3,), dtype= np.float32) # resample on each reset
@@ -76,7 +78,7 @@ class RobustMetaQuadrupedLocomotion(NoisySensorMixin, RobotBasePerturbationMixin
 
     def render(self, mode="vis", **render_kwargs):
         return_ = super().render(mode, **render_kwargs)
-        if mode == "vis":
+        if "vis" in mode:
             pil_image = Image.fromarray(return_)
             pil_draw = ImageDraw.Draw(pil_image)
             pil_draw.text(
@@ -88,10 +90,17 @@ class RobustMetaQuadrupedLocomotion(NoisySensorMixin, RobotBasePerturbationMixin
         return return_            
 
     def reset(self, *args, **kwargs):
-        self.moving_cmd = np.random.uniform(
-            low= -self.moving_max_speeds,
-            high= self.moving_max_speeds,
-        ) if np.random.uniform() < self.move_prob else np.array((0, 0, 0), dtype= np.float32)
+        if self.binary_move_cmd:
+            if np.random.uniform() < self.move_prob:
+                self.moving_cmd = np.random.randint(low= 0, high= 2, size= (3,),).astype(np.float32) * 2 - 1
+                self.moving_cmd *= self.moving_max_speeds
+            else:
+                self.moving_cmd = np.zeros((3,))
+        else:
+            self.moving_cmd = np.random.uniform(
+                low= -self.moving_max_speeds,
+                high= self.moving_max_speeds,
+            ) if np.random.uniform() < self.move_prob else np.array((0, 0, 0), dtype= np.float32)
         self.expected_heading = 0.
         return super().reset(*args, **kwargs)
 

@@ -92,7 +92,7 @@ class LocomotionEnv(PybulletEnv, Env):
         return obs, reward, done, info
 
     def render(self, mode= "vis", **render_kwargs):
-        if mode == "vis":
+        if "vis" in mode:
             """ Render array for recording visualization """
             robot_inertial = self.robot.get_inertial_data()
             view_matrix_kwargs = dict(
@@ -115,6 +115,56 @@ class LocomotionEnv(PybulletEnv, Env):
                     **self.default_camera_fov_kwargs
                 ),
             )
-            return image_data[2]
+            np_image = image_data[2]
+            if mode == "dual_vis" or mode == "quad_vis":
+                view_matrix_kwargs["yaw"] *= -1
+                image_data_side = self.pb_client.getCameraImage(
+                    width= render_kwargs.get("width", 320),
+                    height= render_kwargs.get("height", 240),
+                    viewMatrix= self.pb_client.computeViewMatrixFromYawPitchRoll(
+                        cameraTargetPosition= robot_inertial["position"],
+                        **view_matrix_kwargs,
+                    ),
+                    projectionMatrix= self.pb_client.computeProjectionMatrixFOV(
+                        aspect= render_kwargs.get("width", 320)/render_kwargs.get("height", 240),
+                        **self.default_camera_fov_kwargs
+                    ),
+                )
+                np_image = np.concatenate([image_data_side[2], np_image], axis= 1) # (H, 2W, C)
+            if mode == "quad_vis":
+                image_datas = []
+                view_matrix_kwargs["yaw"] += 180
+                image_data_side = self.pb_client.getCameraImage(
+                    width= render_kwargs.get("width", 320),
+                    height= render_kwargs.get("height", 240),
+                    viewMatrix= self.pb_client.computeViewMatrixFromYawPitchRoll(
+                        cameraTargetPosition= robot_inertial["position"],
+                        **view_matrix_kwargs,
+                    ),
+                    projectionMatrix= self.pb_client.computeProjectionMatrixFOV(
+                        aspect= render_kwargs.get("width", 320)/render_kwargs.get("height", 240),
+                        **self.default_camera_fov_kwargs
+                    ),
+                )
+                image_datas.append(image_data_side[2])
+                view_matrix_kwargs["yaw"] *= -1
+                image_data_side = self.pb_client.getCameraImage(
+                    width= render_kwargs.get("width", 320),
+                    height= render_kwargs.get("height", 240),
+                    viewMatrix= self.pb_client.computeViewMatrixFromYawPitchRoll(
+                        cameraTargetPosition= robot_inertial["position"],
+                        **view_matrix_kwargs,
+                    ),
+                    projectionMatrix= self.pb_client.computeProjectionMatrixFOV(
+                        aspect= render_kwargs.get("width", 320)/render_kwargs.get("height", 240),
+                        **self.default_camera_fov_kwargs
+                    ),
+                )
+                image_datas.append(image_data_side[2])
+                np_image = np.concatenate([
+                    np_image,
+                    np.concatenate(image_datas, axis= 1),
+                ], axis= 0) # (2H, 2W, C)
+            return np_image
         else:
             raise NotImplementedError("Not implemented renderer for mode: {}".format(mode))
