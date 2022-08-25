@@ -1,3 +1,4 @@
+from email.policy import default
 import numpy as np
 import pybullet as p
 import pybullet_data as pb_data
@@ -23,10 +24,18 @@ class MetaQuadrupedRobot(DeltaPositionControlMixin, PybulletRobot):
             foot_size= 0.012, # radius, sphere
             foot_lateral_friction= 0.5,
             leg_bend_angle= np.pi/4, # rad
+            joint_protection_limit= 0.,
             pb_control_kwargs= dict(),
-            default_base_transform= [0, 0, 0.3, 0, 0, 0, 1],
+            default_base_transform= None,
             **kwargs,
         ):
+        """
+        Args:
+            joint_protection_limit:
+                If positive scalar, limit around default_joint_states
+                If negative scalar, limit by shrinking the joint limit
+                If np array of shape (2, 12) or nested list of shape (2, 12), replace the original limit
+        """
         self.configuration= dict(
             base_mass = base_mass,
             base_size = base_size,
@@ -40,12 +49,16 @@ class MetaQuadrupedRobot(DeltaPositionControlMixin, PybulletRobot):
             foot_size = foot_size,
             foot_lateral_friction = foot_lateral_friction
         )
-        self.leg_bend_angle = leg_bend_angle
+        self.leg_bend_angle = leg_bend_angle # the angle between default thigh and horizontal line.
+        self.joint_protection_limit = joint_protection_limit
         self.valid_joint_types = [p.JOINT_REVOLUTE, p.JOINT_PRISMATIC]
         _pb_control_kwargs = dict(
             forces= [30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30],
         ); _pb_control_kwargs.update(pb_control_kwargs)
-        self.set_all_joint_position_limits()
+        if default_base_transform is None:
+            default_base_transform = np.zeros((7,), dtype= float)
+            default_base_transform[-1] = 1.
+            default_base_transform[2] = np.sin(self.leg_bend_angle) * (thigh_size[1] + shin_size[1])
         super().__init__(
             pb_control_kwargs= _pb_control_kwargs,
             default_base_transform= default_base_transform,
@@ -64,16 +77,36 @@ class MetaQuadrupedRobot(DeltaPositionControlMixin, PybulletRobot):
 
     def set_all_joint_position_limits(self):
         """ This method only set the attribute, but not change any setting in pybullet simulator. """
-        self.all_joint_position_limits = np.ones((2, 24))
-        self.all_joint_position_limits[1] *= -1 # invalid joints will not have valid limits
-        for joint_id in [0, 12]: # left hip
-            self.all_joint_position_limits[:, joint_id] = [-np.pi/6, np.pi/4]
-        for joint_id in [6, 18]: # right hip
-            self.all_joint_position_limits[:, joint_id] = [-np.pi/4, np.pi/6]
-        for joint_id in [1, 7, 13, 19]: # thigh
-            self.all_joint_position_limits[:, joint_id] = [self.leg_bend_angle - np.pi, self.leg_bend_angle]
-        for joint_id in [3, 9, 15, 21]: # shin
-            self.all_joint_position_limits[:, joint_id] = [0, np.pi*8/9]
+        if isinstance(self.joint_protection_limit, list) and len(self.joint_protection_limit) == 2 and len(self.joint_protection_limit[0]) == 12 and len(self.joint_protection_limit[1]) == 12:
+            self.all_joint_position_limits = np.array(self.joint_protection_limit, dtype= np.float32)
+        elif self.joint_protection_limit > 0:
+            self.all_joint_position_limits = np.ones((2, 24))
+            for idx, joint_id in enumerate(self.valid_joint_ids):
+                self.all_joint_position_limits[0, joint_id] = self.default_joint_states[idx] - self.joint_protection_limit
+                self.all_joint_position_limits[1, joint_id] = self.default_joint_states[idx] + self.joint_protection_limit
+        else:
+            self.all_joint_position_limits = np.ones((2, 24))
+            self.all_joint_position_limits[1] *= -1 # invalid joints will not have valid limits
+            for joint_id in [0, 12]: # left hip
+                self.all_joint_position_limits[:, joint_id] = [
+                    -np.pi/6 - self.joint_protection_limit,
+                    np.pi/4 + self.joint_protection_limit,
+                ]
+            for joint_id in [6, 18]: # right hip
+                self.all_joint_position_limits[:, joint_id] = [
+                    -np.pi/4 - self.joint_protection_limit,
+                    np.pi/6 + self.joint_protection_limit,
+                ]
+            for joint_id in [1, 7, 13, 19]: # thigh
+                self.all_joint_position_limits[:, joint_id] = [
+                    -np.pi/2 - self.joint_protection_limit,
+                    np.pi - self.leg_bend_angle + self.joint_protection_limit,
+                ]
+            for joint_id in [3, 9, 15, 21]: # shin
+                self.all_joint_position_limits[:, joint_id] = [
+                    -np.pi*8/9 - self.joint_protection_limit,
+                    0 + self.joint_protection_limit,
+                ]
 
     def get_joint_limits(self, modal="position", valid_joint_only=True):
         # assert modal == "position", "Only position limits are supported, get {}".format(modal)
@@ -100,6 +133,7 @@ class MetaQuadrupedRobot(DeltaPositionControlMixin, PybulletRobot):
             return limit
 
     def set_robot_dynamics(self):
+        self.set_all_joint_position_limits()
         for joint_id in self.valid_joint_ids:
             self.pb_client.changeDynamics(self.body_id, joint_id,
                 jointLowerLimit=self.all_joint_position_limits[0, joint_id],
@@ -131,7 +165,7 @@ class MetaQuadrupedRobot(DeltaPositionControlMixin, PybulletRobot):
             hip_horizontal_shift = direct * configuration["base_size"][:2]
             hip_horizontal_shift[1] += configuration["hip_size"][0] * direct[1]
             link_positions.append(np.concatenate([hip_horizontal_shift, np.array([0])]))
-            link_orientations.append(p.getQuaternionFromEuler([0, np.pi/2, 0])) # lie down the cylinder
+            link_orientations.append(p.getQuaternionFromEuler([0, np.pi/2, 0])) # local +z -> base +x
             link_parent_ids.append(0)
             link_joint_types.append(p.JOINT_REVOLUTE)
             link_joint_axes.append(np.array([0, 0, 1]))
@@ -141,7 +175,7 @@ class MetaQuadrupedRobot(DeltaPositionControlMixin, PybulletRobot):
             link_visual_ids.append(component_ids['hip_thigh_visual_id'])
             hip_thigh_shift = direct[1] * (configuration["hip_size"][0] + configuration["thigh_size"][0])
             link_positions.append(np.array([0, hip_thigh_shift, 0]))
-            link_orientations.append(p.getQuaternionFromEuler([np.pi/2, 0, 0,])) # point outwards
+            link_orientations.append(p.getQuaternionFromEuler([-np.pi/2, 0, 0,])) # local +z -> base +y, local +x -> base -z 
             link_parent_ids.append(leg_idx * n_link_per_leg + 1)
             link_joint_types.append(p.JOINT_REVOLUTE)
             link_joint_axes.append(np.array([0, 0, 1])) # relative to child's z axis
@@ -159,7 +193,7 @@ class MetaQuadrupedRobot(DeltaPositionControlMixin, PybulletRobot):
             link_collision_ids.append(component_ids['knee_collision_id'])
             link_visual_ids.append(component_ids['knee_visual_id'])
             link_positions.append(np.array([0, 0, configuration["thigh_size"][1]/2 + configuration["shin_size"][0]]))
-            link_orientations.append(p.getQuaternionFromEuler([0, -np.pi/2, 0]))
+            link_orientations.append(p.getQuaternionFromEuler([0, -np.pi/2, 0])) # same orientation as thigh joint
             link_parent_ids.append(leg_idx * n_link_per_leg + 3)
             link_joint_types.append(p.JOINT_REVOLUTE)
             link_joint_axes.append(np.array([0, 0, 1])) # relative to child's z axis
@@ -276,9 +310,9 @@ class MetaQuadrupedRobot(DeltaPositionControlMixin, PybulletRobot):
         for hip_idx in [3, 9]:
             self.default_joint_states[hip_idx] = -np.pi/6
         for thigh_idx in [1, 4, 7, 10]:
-            self.default_joint_states[thigh_idx] = self.leg_bend_angle - np.pi/2
+            self.default_joint_states[thigh_idx] = np.pi/2 - self.leg_bend_angle
         for knee_idx in [2, 5, 8, 11]:
-            self.default_joint_states[knee_idx] = np.pi - self.leg_bend_angle*2
+            self.default_joint_states[knee_idx] = self.leg_bend_angle*2 - np.pi
 
     def reset_joint_states(self):
         for idx, j in enumerate(self.valid_joint_ids):
@@ -315,7 +349,8 @@ if __name__ == "__main__":
     pb_client.loadURDF("plane.urdf", [0, 0, 0], [0, 0, 0, 1])
     robot = MetaQuadrupedRobot(
         base_mass = 14, #0., # fixed base.
-        default_base_transform = np.array([0, 0, 0.3, 0, 0, 0, 1]),
+        joint_protection_limit= 0.719,
+        default_base_transform = None,
         pb_client= pb_client,
     )
     cmd_limits = robot.get_cmd_limits()

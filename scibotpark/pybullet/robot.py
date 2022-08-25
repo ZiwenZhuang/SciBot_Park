@@ -38,8 +38,8 @@ class PybulletRobot:
         """ initialization sequence to build and set the robot model """
         self.load_robot_model() # must implement in subclass
         self.set_valid_joint_ids(getattr(self, "valid_joint_types", None))
-        self.set_robot_dynamics()
         self.set_default_joint_states()
+        self.set_robot_dynamics()
         self.reset_joint_states()
 
     def reset(self, base_transform= None):
@@ -222,7 +222,11 @@ class DeltaPositionControlMixin:
         """
         if hasattr(self, "delta_control_limit"):
             num_valid_joints = len(self.valid_joint_ids)
-            limits = np.ones((num_valid_joints,), dtype= np.float32) * self.delta_control_limit
+            if isinstance(self.delta_control_limit, list):
+                assert len(self.delta_control_limit) == num_valid_joints, "Invalid delta_control_limit of length: {}".format(len(self.delta_control_limit))
+                limits = np.array(self.delta_control_limit, dtype= np.float32)
+            else:
+                limits = np.ones((num_valid_joints,), dtype= np.float32) * self.delta_control_limit
             return np.stack([-limits, limits], axis= 0)
         else:
             return super().get_cmd_limits()

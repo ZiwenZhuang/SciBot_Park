@@ -115,5 +115,5 @@ class RobustMetaQuadrupedLocomotion(NoisySensorMixin, RobotBasePerturbationMixin
             + inertial_data["linear_velocity"][1] * np.sin(self.expected_heading)
         sliding_velocity = - inertial_data["linear_velocity"][0] * np.sin(self.expected_heading) \
             + inertial_data["linear_velocity"][1] * np.cos(self.expected_heading)
-        move_velocity_vector = np.array(forward_velocity, sliding_velocity)
-        return self.forward_reward_max - np.linalg.norm(move_velocity_vector - self.moving_cmd[:2])
+        move_velocity_vector = np.array([forward_velocity, sliding_velocity])
+        return np.inner(move_velocity_vector, self.moving_cmd[:2])
