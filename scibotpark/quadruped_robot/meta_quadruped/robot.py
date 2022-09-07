@@ -1,4 +1,5 @@
 from email.policy import default
+from turtle import reset
 import numpy as np
 import pybullet as p
 import pybullet_data as pb_data
@@ -25,6 +26,7 @@ class MetaQuadrupedRobot(DeltaPositionControlMixin, PybulletRobot):
             foot_lateral_friction= 0.5,
             leg_bend_angle= np.pi/4, # rad
             joint_protection_limit= 0.,
+            reset_joint_perturbation= None,
             pb_control_kwargs= dict(),
             default_base_transform= None,
             **kwargs,
@@ -35,6 +37,9 @@ class MetaQuadrupedRobot(DeltaPositionControlMixin, PybulletRobot):
                 If positive scalar, limit around default_joint_states
                 If negative scalar, limit by shrinking the joint limit
                 If np array of shape (2, 12) or nested list of shape (2, 12), replace the original limit
+            reset_joint_perturbation:
+                If scalar, add gaussian noise to each joint when reset_joint_states
+                If vector or list, add guassian noise to each joint using each element, wher reset_joint_states
         """
         self.configuration= dict(
             base_mass = base_mass,
@@ -51,6 +56,7 @@ class MetaQuadrupedRobot(DeltaPositionControlMixin, PybulletRobot):
         )
         self.leg_bend_angle = leg_bend_angle # the angle between default thigh and horizontal line.
         self.joint_protection_limit = joint_protection_limit
+        self.reset_joint_perturbation = reset_joint_perturbation
         self.valid_joint_types = [p.JOINT_REVOLUTE, p.JOINT_PRISMATIC]
         _pb_control_kwargs = dict(
             forces= [30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30],
@@ -77,7 +83,10 @@ class MetaQuadrupedRobot(DeltaPositionControlMixin, PybulletRobot):
 
     def set_all_joint_position_limits(self):
         """ This method only set the attribute, but not change any setting in pybullet simulator. """
-        if isinstance(self.joint_protection_limit, list) and len(self.joint_protection_limit) == 2 and len(self.joint_protection_limit[0]) == 12 and len(self.joint_protection_limit[1]) == 12:
+        if isinstance(self.joint_protection_limit, list) \
+                and len(self.joint_protection_limit) == 2 \
+                and len(self.joint_protection_limit[0]) == 12 \
+                and len(self.joint_protection_limit[1]) == 12:
             self.all_joint_position_limits = np.array(self.joint_protection_limit, dtype= np.float32)
         elif self.joint_protection_limit > 0:
             self.all_joint_position_limits = np.ones((2, 24))
@@ -117,7 +126,8 @@ class MetaQuadrupedRobot(DeltaPositionControlMixin, PybulletRobot):
                 return self.all_joint_position_limits
         elif modal == "velocity":
             # This limit only provides a shape, the space is not meaningful.
-            num_joints = len(self.valid_joint_ids) if valid_joint_only else self.all_joint_position_limits.shape[1]
+            num_joints = len(self.valid_joint_ids) if valid_joint_only \
+                else self.all_joint_position_limits.shape[1]
             limit = np.ones((2, num_joints)) * np.inf
             limit[0] = -np.inf
             return limit
@@ -125,7 +135,8 @@ class MetaQuadrupedRobot(DeltaPositionControlMixin, PybulletRobot):
             limit = np.array([self.pb_control_kwargs["forces"], self.pb_control_kwargs["forces"]])
             limit[0] *= -1
             if not valid_joint_only:
-                num_joints = len(self.valid_joint_ids) if valid_joint_only else self.all_joint_position_limits.shape[1]
+                num_joints = len(self.valid_joint_ids) if valid_joint_only \
+                    else self.all_joint_position_limits.shape[1]
                 limit_ = np.ones((2, num_joints)) * np.inf
                 limit_[0] = -np.inf
                 limit_[:, self.valid_joint_ids] = limit
@@ -303,7 +314,8 @@ class MetaQuadrupedRobot(DeltaPositionControlMixin, PybulletRobot):
         return component_ids
 
     def set_default_joint_states(self):
-        assert len(self.valid_joint_ids) == 12, "Expected 12 joints to control, got {}".format(len(self.valid_joint_ids))
+        assert len(self.valid_joint_ids) == 12, \
+            "Expected 12 joints to control, got {}".format(len(self.valid_joint_ids))
         self.default_joint_states = np.zeros(12)
         for hip_idx in [0, 6]:
             self.default_joint_states[hip_idx] = np.pi/6
@@ -316,7 +328,13 @@ class MetaQuadrupedRobot(DeltaPositionControlMixin, PybulletRobot):
 
     def reset_joint_states(self):
         for idx, j in enumerate(self.valid_joint_ids):
-            self.pb_client.resetJointState(self.body_id, j, self.default_joint_states[idx])
+            joint_state = self.default_joint_states[idx]
+            if self.reset_joint_perturbation:
+                if isinstance(self.reset_joint_perturbation, list):
+                    joint_state += self.reset_joint_perturbation[idx] * np.random.normal()
+                else:
+                    joint_state += self.reset_joint_perturbation * np.random.normal()
+            self.pb_client.resetJointState(self.body_id, j, joint_state)
     
     def get_inertial_data(self):
         """
@@ -351,6 +369,12 @@ if __name__ == "__main__":
         base_mass = 14, #0., # fixed base.
         joint_protection_limit= 0.719,
         default_base_transform = None,
+        reset_joint_perturbation= [
+            np.pi/9, np.pi/6, np.pi/6,
+            np.pi/9, np.pi/6, np.pi/6,
+            np.pi/9, np.pi/6, np.pi/6,
+            np.pi/9, np.pi/6, np.pi/6,
+        ],
         pb_client= pb_client,
     )
     cmd_limits = robot.get_cmd_limits()
