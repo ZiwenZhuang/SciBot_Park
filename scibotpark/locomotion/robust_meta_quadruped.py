@@ -11,6 +11,7 @@ from scibotpark.locomotion.noisy_sensor import NoisySensorMixin
 from scibotpark.locomotion.perturbation import RobotBasePerturbationMixin
 
 class RobustMetaQuadrupedLocomotion(NoisySensorMixin, RobotBasePerturbationMixin, MetaQuadrupedForward):
+    """ Different from MetaQuadrupedForward, this class added the moving command """
     def __init__(self, *args,
             moving_max_speeds= (0.1, 0.1, 0.2), # x, y, raw expectation speed
             binary_move_cmd= False, # if true, the cmd will be only max speed or zero.
@@ -87,7 +88,7 @@ class RobustMetaQuadrupedLocomotion(NoisySensorMixin, RobotBasePerturbationMixin
                 (255, 0, 0),
             )
             return_ = np.asarray(pil_image)
-        return return_            
+        return return_
 
     def reset(self, *args, **kwargs):
         if self.binary_move_cmd:
@@ -104,16 +105,28 @@ class RobustMetaQuadrupedLocomotion(NoisySensorMixin, RobotBasePerturbationMixin
         self.expected_heading = 0.
         return super().reset(*args, **kwargs)
 
+    @staticmethod
+    def phi(x):
+        """ According to ETH's Learn to walk in minutes paper. This is how they compute the 
+        reward when using command and actual robot state.
+        """
+        return np.exp(- np.power(np.linalg.norm(x), 2) / 0.25)
+
     def compute_heading_reward(self):
         inertial_data = self.robot.get_inertial_data()
-        heading_reward = -np.abs(inertial_data["rotation"][2] - self.expected_heading)
+        heading_reward = self.phi(self.moving_cmd[2] - inertial_data["angular_velocity"][2])
         return heading_reward
 
     def compute_forward_reward(self):
         inertial_data = self.robot.get_inertial_data()
-        forward_velocity = inertial_data["linear_velocity"][0] * np.cos(self.expected_heading) \
-            + inertial_data["linear_velocity"][1] * np.sin(self.expected_heading)
-        sliding_velocity = - inertial_data["linear_velocity"][0] * np.sin(self.expected_heading) \
-            + inertial_data["linear_velocity"][1] * np.cos(self.expected_heading)
-        move_velocity_vector = np.array([forward_velocity, sliding_velocity])
-        return np.inner(move_velocity_vector, self.moving_cmd[:2])
+        robot_base_heading = inertial_data["rotation"][2]
+        forward_velocity = inertial_data["linear_velocity"][0] * np.cos(robot_base_heading) \
+            + inertial_data["linear_velocity"][1] * np.sin(robot_base_heading)
+        sliding_velocity = - inertial_data["linear_velocity"][0] * np.sin(robot_base_heading) \
+            + inertial_data["linear_velocity"][1] * np.cos(robot_base_heading)
+        return self.phi(self.moving_cmd[:2] - np.array([forward_velocity, sliding_velocity]))
+
+    def compute_sliding_reward(self):
+        inertial_data = self.robot.get_inertial_data()
+        return - inertial_data["linear_velocity"][2] ** 2
+        

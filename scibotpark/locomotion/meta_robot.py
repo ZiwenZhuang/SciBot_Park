@@ -105,6 +105,10 @@ class MetaQuadrupedForward(LocomotionEnv):
             forward_reward = self.compute_forward_reward()
             reward += self.reward_ratios.get("forward_reward", 0) * forward_reward
             info["forward_reward"] = forward_reward
+        if self.reward_ratios.get("sliding_reward", 0) > 0:
+            sliding_reward = self.compute_sliding_reward()
+            reward += self.reward_ratios.get("sliding_reward", 0) * sliding_reward
+            info["sliding_reward"] = sliding_reward
         if self.reward_ratios.get("torque_reward", 0) > 0:
             torque_reward = self.compute_torque_reward()
             reward += self.reward_ratios.get("torque_reward", 0) * torque_reward
@@ -113,10 +117,18 @@ class MetaQuadrupedForward(LocomotionEnv):
             heading_reward = self.compute_heading_reward()
             reward += self.reward_ratios.get("heading_reward", 0) * heading_reward
             info["heading_reward"] = heading_reward
+        if self.reward_ratios.get("spinning_reward", 0) > 0:
+            spinning_reward = self.compute_spinning_reward()
+            reward += self.reward_ratios.get("spinning_reward", 0) * spinning_reward
+            info["spinning_reward"] = spinning_reward
         if self.reward_ratios.get("joint_velocity_reward", 0) > 0:
             joint_velocity_reward = self.compute_joint_velocity_reward()
             reward += self.reward_ratios.get("joint_velocity_reward", 0) * joint_velocity_reward
             info["joint_velocity_reward"] = joint_velocity_reward
+        if self.reward_ratios.get("action_reward", 0) > 0:
+            action_reward = self.compute_action_reward()
+            reward += self.reward_ratios.get("action_reward", 0) * action_reward
+            info["action_reward"] = action_reward
         return reward, info
 
     def compute_alive_reward(self):
@@ -147,6 +159,11 @@ class MetaQuadrupedForward(LocomotionEnv):
         inertial_data = self.robot.get_inertial_data()
         return inertial_data["linear_velocity"][0] # move towards +x direction
 
+    def compute_sliding_reward(self):
+        """ This is actually a penalty """
+        inertial_data = self.robot.get_inertial_data()
+        return - (inertial_data["linear_velocity"][1])**2 - (inertial_data["linear_velocity"][2])**2
+
     def compute_torque_reward(self):
         torques = self.robot.get_joint_states("torque")
         return -np.power(np.linalg.norm(torques), 2) # negative of total torque norm
@@ -155,10 +172,24 @@ class MetaQuadrupedForward(LocomotionEnv):
         inertial_data = self.robot.get_inertial_data()
         heading_reward = -np.abs(inertial_data["rotation"][2])
         return heading_reward
+
+    def compute_spinning_reward(self):
+        """ This is actually a penalty """
+        inertial_data = self.robot.get_inertial_data()
+        return - (inertial_data["angular_velocity"][0])**2 - (inertial_data["angular_velocity"][1])**2
     
     def compute_joint_velocity_reward(self):
+        """ This is actually a penalty
+        There is no joint acceleration in Pybullet, but ETH's Learn to walk in minutes paper used acceleration
+        """
         velocity = self.robot.get_joint_states("velocity")
         return -np.power(np.linalg.norm(velocity), 2) # negative of total joint velocity norm
+
+    def compute_action_reward(self):
+        """ This is a penalty term. NOTE: Please check whether the environment action is all
+        relative command (e.g. position delta, velocity, torque). It has to be this.
+        """
+        return -np.power(np.linalg.norm(self.last_action), 2)
 
     def is_done(self):
         reached_horizon = super().is_done()
