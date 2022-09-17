@@ -33,7 +33,7 @@ class NoisySensorMixin:
                 return_[k] = NoisySensorMixin.add_noise(obs[k], std[k])
             return return_
         else:
-            return np.random.normal(obs, std, size= obs.shape)
+            return np.random.normal(obs, std, size= obs.shape).astype(np.float32)
 
     def _get_obs(self):
         base_obs = super()._get_obs()

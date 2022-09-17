@@ -149,6 +149,7 @@ class MetaQuadrupedRobot(DeltaPositionControlMixin, PybulletRobot):
             self.pb_client.changeDynamics(self.body_id, joint_id,
                 jointLowerLimit=self.all_joint_position_limits[0, joint_id],
                 jointUpperLimit=self.all_joint_position_limits[1, joint_id],
+                jointLimitForce= 1e18,
             )
         for link_id in [4, 10, 16, 22]: # foot
             self.pb_client.changeDynamics(self.body_id, link_id,
@@ -327,13 +328,19 @@ class MetaQuadrupedRobot(DeltaPositionControlMixin, PybulletRobot):
             self.default_joint_states[knee_idx] = self.leg_bend_angle*2 - np.pi
 
     def reset_joint_states(self):
+        joint_position_limits = self.get_joint_limits("position")
         for idx, j in enumerate(self.valid_joint_ids):
             joint_state = self.default_joint_states[idx]
             if self.reset_joint_perturbation:
                 if isinstance(self.reset_joint_perturbation, list):
-                    joint_state += self.reset_joint_perturbation[idx] * np.random.normal()
+                    joint_state += self.reset_joint_perturbation[idx] * np.random.uniform(low= -0.5, high= 0.5)
                 else:
-                    joint_state += self.reset_joint_perturbation * np.random.normal()
+                    joint_state += self.reset_joint_perturbation * np.random.uniform(low= -0.5, high= 0.5)
+            joint_state = np.clip(
+                joint_state,
+                joint_position_limits[0, idx],
+                joint_position_limits[1, idx],
+            )
             self.pb_client.resetJointState(self.body_id, j, joint_state)
     
     def get_inertial_data(self):
@@ -380,6 +387,6 @@ if __name__ == "__main__":
     cmd_limits = robot.get_cmd_limits()
     while True:
         cmd = np.random.uniform(low=cmd_limits[0], high=cmd_limits[1])
-        robot.send_joints_cmd(cmd)
+        # robot.send_joints_cmd(cmd)
         pb_client.stepSimulation()
         time.sleep(duration)

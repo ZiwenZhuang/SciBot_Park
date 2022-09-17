@@ -69,7 +69,7 @@ class MetaQuadrupedForward(LocomotionEnv):
         """
         thigh_length = self.robot.configuration["thigh_size"][1]
         shin_length = self.robot.configuration["shin_size"][1]
-        self.alive_height_range = np.array((thigh_length + shin_length,), dtype= np.float).repeat(2,)
+        self.alive_height_range = np.array((thigh_length + shin_length,), dtype= np.float32).repeat(2,)
         self.alive_height_range[0] *= self.alive_height_ratio[0]
         self.alive_height_range[1] *= self.alive_height_ratio[1]
 
@@ -207,7 +207,26 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
     clients = [bullet_client.BulletClient(connection_mode= p.DIRECT) for _ in range(1)]
     env = MetaQuadrupedForward(
-        robot_kwargs= dict(),
+        robot_kwargs= dict(
+            joint_protection_limit=  np.pi/6,
+            reset_joint_perturbation= [
+                np.pi/9, np.pi/6, np.pi/6,
+                np.pi/9, np.pi/6, np.pi/6,
+                np.pi/9, np.pi/6, np.pi/6,
+                np.pi/9, np.pi/6, np.pi/6,
+            ],
+            delta_control_scale= [
+                0.05, 0.5, 0.5,
+                0.05, 0.5, 0.5,
+                0.05, 0.5, 0.5,
+                0.05, 0.5, 0.5,
+            ],
+            pb_control_kwargs= dict(
+                positionGains= [40] * 12,
+                velocityGains= [5] * 12,
+            ),
+            default_base_transform= [0, 0, 1, 0, 0, 0, 1],
+        ),
         robot_config_sampler_kwargs= dict(
             base_mass_range= (10., 25.0), # kg
             base_length_range= (0.16, 0.25), # meter, x axis
@@ -236,8 +255,8 @@ if __name__ == "__main__":
     action_space = env.action_space
     observation_space = env.observation_space
     observation_space.contains(obs)
-    print("action: {}".format(action_space))
-    print("obs: {}".format(observation_space))
+    # print("action: {}".format(action_space))
+    # print("obs: {}".format(observation_space))
     while True:
         action = np.zeros(action_space.shape)
         # action = action_space.sample()

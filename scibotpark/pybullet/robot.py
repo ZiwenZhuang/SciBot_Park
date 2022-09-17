@@ -126,11 +126,11 @@ class PybulletRobot:
         """
         joint_states = self.pb_client.getJointStates(self.body_id, (self.valid_joint_ids if valid_joint_only else self.all_joint_ids))
         if modal == "position":
-            return np.array([joint_state[0] for joint_state in joint_states])
+            return np.array([joint_state[0] for joint_state in joint_states], dtype= np.float32)
         elif modal == "velocity":
-            return np.array([joint_state[1] for joint_state in joint_states])
+            return np.array([joint_state[1] for joint_state in joint_states], dtype= np.float32)
         elif modal == "torque":
-            return np.array([joint_state[3] for joint_state in joint_states])
+            return np.array([joint_state[3] for joint_state in joint_states], dtype= np.float32)
         else:
             raise NotImplementedError("modal {} is not implemented".format(modal))
 
@@ -201,7 +201,7 @@ class PybulletRobot:
 class DeltaPositionControlMixin:
     def __init__(self,
             *args,
-            delta_control_limit= 1.,
+            delta_control_scale= 1.,
             pb_control_mode= "DELTA_POSITION_CONTROL",
             **kwargs
         ):
@@ -211,7 +211,7 @@ class DeltaPositionControlMixin:
                 pb_control_mode= "POSITION_CONTROL",
                 **kwargs,
             )
-            self.delta_control_limit = delta_control_limit
+            self.delta_control_scale = delta_control_scale
         else:
             super().__init__(*args, pb_control_mode= pb_control_mode, **kwargs)
 
@@ -220,21 +220,19 @@ class DeltaPositionControlMixin:
         Returns:
             cmd_limits: a np array of joint limits for the actual robot command, shape (2, n_valid_joints)
         """
-        if hasattr(self, "delta_control_limit"):
+        if hasattr(self, "delta_control_scale"):
             num_valid_joints = len(self.valid_joint_ids)
-            if isinstance(self.delta_control_limit, list):
-                assert len(self.delta_control_limit) == num_valid_joints, "Invalid delta_control_limit of length: {}".format(len(self.delta_control_limit))
-                limits = np.array(self.delta_control_limit, dtype= np.float32)
-            else:
-                limits = np.ones((num_valid_joints,), dtype= np.float32) * self.delta_control_limit
+            if isinstance(self.delta_control_scale, list):
+                assert len(self.delta_control_scale) == num_valid_joints, "Invalid delta_control_scale of length: {}".format(len(self.delta_control_scale))
+            limits = np.ones((num_valid_joints,), dtype= np.float32)
             return np.stack([-limits, limits], axis= 0)
         else:
             return super().get_cmd_limits()
 
     def send_joints_cmd(self, cmd):
-        if hasattr(self, "delta_control_limit"):
+        if hasattr(self, "delta_control_scale"):
             current_joint_states = self.get_joint_states()
-            current_joint_states += cmd
+            current_joint_states += cmd * self.delta_control_scale
             super().send_joints_cmd(current_joint_states)
         else:
             super().send_joints_cmd(cmd)

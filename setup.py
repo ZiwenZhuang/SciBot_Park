@@ -1,7 +1,10 @@
 import setuptools
 
 INSTALL_REQUIRES = [
-    'gym',
+    # high version will check whether obs is contained by observation_space,
+    # which cannot be fully satisfied by pybullet's changeDynamics position
+    # limit setting.
+    'gym==0.18.0',
     'numpy',
 ]
 

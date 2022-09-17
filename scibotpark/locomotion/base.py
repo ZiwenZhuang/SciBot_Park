@@ -71,7 +71,7 @@ class LocomotionEnv(PybulletEnv, Env):
                 inertial_data["linear_velocity"],
                 inertial_data["rotation"],
                 inertial_data["angular_velocity"],
-            ])
+            ]).astype(np.float32)
         if len(self.obs_types) == 1:
             return obs[self.obs_types[0]]
         else:
