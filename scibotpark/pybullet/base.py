@@ -48,7 +48,6 @@ class PybulletEnv:
         self.pb_client.changeDynamics(self.plane_id, -1, **self.pb_object_dynamics_parameter)
 
     def _build_robot(self):
-        self._robot = None # Not Implemented (must add this attribute)
         pass
 
     def _reset_surroundings(self, *args, **kwargs):
@@ -77,6 +76,9 @@ class PybulletEnv:
             self._reset_robot(*args, **kwargs)
         except NotImplementedError as e:
             # This could reduce the memroy leak problem of Pybullet, but slower.
+            if hasattr(self, "_robot"):
+                # incase the old _robot handler in the system disrrupts the new simulation.
+                delattr(self, "_robot")
             self.pb_client.resetSimulation()
             self._initialize_world()
             self._build_surroundings()
@@ -87,4 +89,4 @@ class PybulletEnv:
     # must include the following properties
     @property
     def robot(self) -> PybulletRobot:
-        return self._robot
+        return getattr(self, "_robot", None)

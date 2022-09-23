@@ -72,23 +72,12 @@ class RobustMetaQuadrupedLocomotion(NoisySensorMixin, RobotBasePerturbationMixin
 
     def step(self, action):
         o, r, d, i = super().step(action)
+        inertial_data = self.robot.get_inertial_data()
         i["expected_heading"] = self.expected_heading
         i["cmd_x"] = self.moving_cmd[0]
         i["cmd_y"] = self.moving_cmd[1]
+        i["heading"] = inertial_data["rotation"][2]
         return o, r, d, i
-
-    def render(self, mode="vis", **render_kwargs):
-        return_ = super().render(mode, **render_kwargs)
-        if "vis" in mode:
-            pil_image = Image.fromarray(return_)
-            pil_draw = ImageDraw.Draw(pil_image)
-            pil_draw.text(
-                (16, 16),
-                "cmd: {:.2f}, {:.2f}, {:.2f}".format(*self.moving_cmd),
-                (255, 0, 0),
-            )
-            return_ = np.asarray(pil_image)
-        return return_
 
     def reset(self, *args, **kwargs):
         if self.binary_move_cmd:

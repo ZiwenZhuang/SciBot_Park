@@ -1,4 +1,5 @@
 import numpy as np
+from PIL import Image, ImageDraw
 import pybullet as p
 import pybullet_data as pb_data
 from pybullet_utils import bullet_client
@@ -89,6 +90,7 @@ class LocomotionEnv(PybulletEnv, Env):
         reward, reward_info = self.compute_reward(obs)
         done = self.is_done()
         info = {}; info.update(reward_info)
+        self.current_info = info
         return obs, reward, done, info
 
     def render(self, mode= "vis", **render_kwargs):
@@ -116,7 +118,7 @@ class LocomotionEnv(PybulletEnv, Env):
                 ),
             )
             np_image = image_data[2]
-            if mode == "dual_vis" or mode == "quad_vis":
+            if "dual_vis" in mode or "quad_vis" in mode:
                 view_matrix_kwargs["yaw"] *= -1
                 image_data_side = self.pb_client.getCameraImage(
                     width= render_kwargs.get("width", 320),
@@ -131,7 +133,7 @@ class LocomotionEnv(PybulletEnv, Env):
                     ),
                 )
                 np_image = np.concatenate([image_data_side[2], np_image], axis= 1) # (H, 2W, C)
-            if mode == "quad_vis":
+            if "quad_vis" in mode:
                 image_datas = []
                 view_matrix_kwargs["yaw"] += 180
                 image_data_side = self.pb_client.getCameraImage(
@@ -165,6 +167,17 @@ class LocomotionEnv(PybulletEnv, Env):
                     np_image,
                     np.concatenate(image_datas, axis= 1),
                 ], axis= 0) # (2H, 2W, C)
+            if "info" in mode and hasattr(self, "current_info"):
+                # add reward info as text into np_image
+                pil_image = Image.fromarray(np_image)
+                pil_draw = ImageDraw.Draw(pil_image)
+                for key_idx, key in enumerate(self.current_info.keys()):
+                    pil_draw.text(
+                        (16, 16 * (key_idx + 1)),
+                        "{}: {:.3e}".format(key, self.current_info[key]),
+                        (255, 0, 0),
+                    )
+                np_image = np.asarray(pil_image)
             return np_image
         else:
             raise NotImplementedError("Not implemented renderer for mode: {}".format(mode))
