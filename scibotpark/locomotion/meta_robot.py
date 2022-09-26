@@ -134,7 +134,7 @@ class MetaQuadrupedForward(LocomotionEnv):
     def compute_alive_reward(self):
         inertial_data = self.robot.get_inertial_data()
         hip_ids = [0, 6, 12, 18]
-        knee_ids = [2, 8, 14, 20]
+        knee_ids = [3, 9, 15, 21]
         
         # check if any hip get higher than max_height
         for hip_id in hip_ids:

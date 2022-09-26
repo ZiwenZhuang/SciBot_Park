@@ -16,14 +16,12 @@ class RobustMetaQuadrupedLocomotion(NoisySensorMixin, RobotBasePerturbationMixin
             moving_max_speeds= (0.1, 0.1, 0.2), # x, y, raw expectation speed
             binary_move_cmd= False, # if true, the cmd will be only max speed or zero.
             move_prob= 0.9, # the other option is to let the robot stand still
-            forward_reward_max= 1., # the actual forward reward will be max - norm(speed diff)
             **kwargs,
         ):
         super().__init__(*args, **kwargs)
         self.moving_max_speeds = moving_max_speeds if isinstance(moving_max_speeds, np.ndarray) else np.array(moving_max_speeds)
         self.binary_move_cmd = binary_move_cmd
         self.move_prob = move_prob
-        self.forward_reward_max = forward_reward_max
         self.moving_cmd = np.zeros((3,), dtype= np.float32) # resample on each reset
 
     @property
@@ -90,8 +88,7 @@ class RobustMetaQuadrupedLocomotion(NoisySensorMixin, RobotBasePerturbationMixin
             self.moving_cmd = np.random.uniform(
                 low= -self.moving_max_speeds,
                 high= self.moving_max_speeds,
-                dtype= np.float32,
-            ) if np.random.uniform() < self.move_prob else np.array((0, 0, 0), dtype= np.float32)
+            ).astype(np.float32) if np.random.uniform() < self.move_prob else np.array((0, 0, 0), dtype= np.float32)
         self.expected_heading = 0.
         return super().reset(*args, **kwargs)
 
