@@ -78,17 +78,17 @@ class RobustMetaQuadrupedLocomotion(NoisySensorMixin, RobotBasePerturbationMixin
         return o, r, d, i
 
     def reset(self, *args, **kwargs):
-        if self.binary_move_cmd:
-            if np.random.uniform() < self.move_prob:
-                self.moving_cmd = np.random.randint(low= 0, high= 2, size= (3,),).astype(np.float32) * 2 - 1
+        self.moving_cmd = np.random.randint(low= 0, high= 3, size= (3,),).astype(np.float32) - 1
+        if np.random.uniform() < self.move_prob:
+            if self.binary_move_cmd:
                 self.moving_cmd *= self.moving_max_speeds
             else:
-                self.moving_cmd = np.zeros((3,), dtype= np.float32)
+                self.moving_cmd *= np.random.uniform(
+                    low= self.moving_max_speeds * self.move_prob,
+                    high= self.moving_max_speeds,
+                ).astype(np.float32)
         else:
-            self.moving_cmd = np.random.uniform(
-                low= -self.moving_max_speeds,
-                high= self.moving_max_speeds,
-            ).astype(np.float32) if np.random.uniform() < self.move_prob else np.array((0, 0, 0), dtype= np.float32)
+            self.moveing_cmd = np.array((0, 0, 0), dtype= np.float32)
         self.expected_heading = 0.
         return super().reset(*args, **kwargs)
 
